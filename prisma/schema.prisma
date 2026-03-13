@@ -1,0 +1,96 @@
+generator client {
+ provider = "prisma-client-js"
+}
+
+datasource db {
+ provider = "mysql"
+ url      = env("DATABASE_URL")
+}
+
+model User {
+ id        Int      @id @default(autoincrement())
+ name      String
+ email     String   @unique
+ password  String
+ role      Role     @default(USER)
+ bookings  Booking[]
+ createdAt DateTime @default(now())
+}
+
+model Item {
+ id          Int      @id @default(autoincrement())
+ name        String
+ description String?
+ price       Int
+ stock       Int
+ image       String?
+ bookingItems BookingItem[]
+}
+
+model Booking {
+ id           Int           @id @default(autoincrement())
+ bookingCode  String?       @unique
+ userId       Int
+ startDate    DateTime
+ endDate      DateTime
+ totalPrice   Int
+ status       BookingStatus @default(PENDING_PAYMENT)
+ user         User          @relation(fields: [userId], references: [id])
+ items        BookingItem[]
+ payment      Payment?
+ expiredAt    DateTime?
+ returnData   Return?
+ createdAt    DateTime      @default(now())
+}
+
+model BookingItem {
+ id        Int @id @default(autoincrement())
+ bookingId Int
+ itemId    Int
+ quantity  Int
+ price     Int
+
+ booking Booking @relation(fields: [bookingId], references: [id])
+ item    Item    @relation(fields: [itemId], references: [id])
+}
+
+model Payment {
+ id           Int    @id @default(autoincrement())
+ bookingId    Int    @unique
+ amount       Int
+ paymentProof String
+ status       PaymentStatus @default(PENDING)
+ booking      Booking @relation(fields: [bookingId], references: [id])
+}
+
+model Return {
+ id        Int      @id @default(autoincrement())
+ bookingId Int      @unique
+ returnedAt DateTime
+ note      String?
+ fine      Int?
+
+ booking Booking @relation(fields: [bookingId], references: [id])
+}
+
+enum Role {
+ USER
+ ADMIN
+}
+
+enum BookingStatus {
+ PENDING_PAYMENT
+ WAITING_CONFIRMATION
+ EXPIRED
+ CONFIRMED
+ RENTED
+ FINISHED
+ CANCELLED
+}
+
+enum PaymentStatus {
+ PENDING
+ EXPIRED
+ VERIFIED
+ REJECTED
+}
