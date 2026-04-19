@@ -53,32 +53,33 @@ export const getItemById = async (req: Request, res: Response) => {
 }
 
 export const createItem = async (req: Request, res: Response) => {
-
   try {
-
-    const { name, description, price, stock } = req.body
+    const { name, description, price, stock, categoryId } = req.body;
+    
+    // Ambil nama file gambar jika ada yang diupload
+    const image = req.file ? req.file.filename : null;
 
     const item = await itemService.createItem({
       name,
       description,
       price: Number(price),
-      stock: Number(stock)
-    })
+      stock: Number(stock),
+      image: image as string, // Nama file yang disimpan di folder uploads
+      categoryId: Number(categoryId),
+    });
 
     res.status(201).json({
-      message: "Item created",
-      data: item
-    })
-
-  } catch (error) {
-
+      success: true,
+      message: "Item created successfully",
+      data: item,
+    });
+  } catch (error: any) {
     res.status(500).json({
-      message: "Server error"
-    })
-
+      success: false,
+      message: error.message || "Server error",
+    });
   }
-
-}
+};
 
 export const updateItem = async (req: Request, res: Response) => {
 

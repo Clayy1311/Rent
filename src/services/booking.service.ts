@@ -12,100 +12,94 @@ interface CreateBookingInput {
   items: BookingItemInput[]
 }
 
-export const createBooking = async (data: CreateBookingInput) => {
 
-  const { userId, startDate, endDate, items } = data
+export const createBooking = async (userId: number, data: {
+  itemId: number;
+  startDate: string;
+  endDate: string;
+  quantity: number;
+}) => {
+  const start = new Date(data.startDate);
+  const end = new Date(data.endDate);
 
-  const start = new Date(startDate)
-  const end = new Date(endDate)
+  // 1. Ambil data Item untuk cek stok total dan harga
+  const item = await prisma.item.findUnique({
+    where: { id: data.itemId }
+  });
 
-  // hitung durasi sewa
-  const duration = Math.ceil(
-    (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
-  )
+  if (!item) throw new Error("Item tidak ditemukan");
 
-  if (duration <= 0) {
-    throw new Error("Invalid booking date")
-  }
-
-  // ambil semua item dari database
-  const itemIds = items.map(i => i.itemId)
-
-  const dbItems = await prisma.item.findMany({
+  // 2. CEK OVERLAP & STOK (Core Logic)
+  // Cari booking yang bentrok di tanggal tersebut
+  const overlappingBookings = await prisma.bookingItem.aggregate({
+    _sum: { quantity: true },
     where: {
-      id: { in: itemIds }
+      itemId: data.itemId,
+      booking: {
+        status: {
+          in: [BookingStatus.CONFIRMED, BookingStatus.RENTED, BookingStatus.WAITING_CONFIRMATION]
+        },
+        OR: [
+          {
+            AND: [
+              { startDate: { lte: start } },
+              { endDate: { gte: start } }
+            ]
+          },
+          {
+            AND: [
+              { startDate: { lte: end } },
+              { endDate: { gte: end } }
+            ]
+          },
+          {
+            AND: [
+              { startDate: { gte: start } },
+              { endDate: { lte: end } }
+            ]
+          }
+        ]
+      }
     }
-  })
+  });
 
-  let totalPrice = 0
+  const bookedQuantity = overlappingBookings._sum.quantity || 0;
+  const availableStock = item.stock - bookedQuantity;
 
-  // validasi stok + hitung harga
-  for (const item of items) {
-
-    const dbItem = dbItems.find(i => i.id === item.itemId)
-
-    if (!dbItem) {
-      throw new Error("Item not found")
-    }
-
-    if (item.quantity > dbItem.stock) {
-      throw new Error(`Stock not enough for item ${dbItem.name}`)
-    }
-
-    const itemPrice =
-      dbItem.price * item.quantity * duration
-
-    totalPrice += itemPrice
+  if (data.quantity > availableStock) {
+    throw new Error(`Stok tidak mencukupi. Tersedia: ${availableStock}, Anda meminta: ${data.quantity}`);
   }
 
-  // expired booking (5 menit)
-  const expiredAt = new Date()
-  expiredAt.setMinutes(expiredAt.getMinutes() + 5)
+  // 3. JALANKAN TRANSACTION
+  const totalPrice = item.price * data.quantity;
+  const bookingCode = `INV-${Date.now()}-${userId}`;
 
-  // transaction
-  const booking = await prisma.$transaction(async (tx) => {
-
+  return await prisma.$transaction(async (tx) => {
+    // A. Buat Header Booking
     const newBooking = await tx.booking.create({
       data: {
         userId,
+        bookingCode,
         startDate: start,
         endDate: end,
         totalPrice,
-        status: "PENDING_PAYMENT",
-        expiredAt
+        status: BookingStatus.PENDING_PAYMENT,
       }
-    })
+    });
 
-    for (const item of items) {
+    // B. Buat Detail Booking (BookingItem)
+    await tx.bookingItem.create({
+      data: {
+        bookingId: newBooking.id,
+        itemId: data.itemId,
+        quantity: data.quantity,
+        price: item.price // Simpan harga saat ini (fixed)
+      }
+    });
 
-      const dbItem = dbItems.find(i => i.id === item.itemId)!
-
-      // simpan booking item
-      await tx.bookingItem.create({
-        data: {
-          bookingId: newBooking.id,
-          itemId: item.itemId,
-          quantity: item.quantity,
-          price: dbItem.price
-        }
-      })
-
-      // reserve stok
-      await tx.item.update({
-        where: { id: item.itemId },
-        data: {
-          stock: {
-            decrement: item.quantity
-          }
-        }
-      })
-    }
-
-    return newBooking
-  })
-
-  return booking
-}
+    return newBooking;
+  });
+};
 
 
 // ============================================
@@ -176,3 +170,19 @@ export const mybookings = async (userId: number) => {
 
   return bookings
 }
+
+
+export const getBookingForInvoice = async (bookingId: number) => {
+  return await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: {
+      user: true,
+      items: {
+        include: {
+          item: true
+        }
+      },
+      payment: true
+    }
+  });
+};

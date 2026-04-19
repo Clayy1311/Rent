@@ -15,17 +15,24 @@ export const getItemById = async (id: number) => {
 }
 
 export const createItem = async (data: {
-  name: string
-  description?: string
-  price: number
-  stock: number
+  name: string;
+  description?: string;
+  price: number;
+  stock: number;
+  image?: string; // Tambahkan ini
+  categoryId: number; // Tambahkan ini agar relasi terbentuk
 }) => {
-
   return await prisma.item.create({
-    data
-  })
-
-}
+    data: {
+      name: data.name,
+      description: data.description,
+      price: data.price,
+      stock: data.stock,
+      image: data.image,
+      categoryId: data.categoryId,
+    },
+  });
+};
 
 export const updateItem = async (
   id: number,

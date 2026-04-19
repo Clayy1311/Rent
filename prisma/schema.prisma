@@ -1,96 +1,137 @@
+// prisma/schema.prisma
+
 generator client {
- provider = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
- provider = "mysql"
- url      = env("DATABASE_URL")
+  provider = "mysql"
+  url      = env("DATABASE_URL")
 }
 
-model User {
- id        Int      @id @default(autoincrement())
- name      String
- email     String   @unique
- password  String
- role      Role     @default(USER)
- bookings  Booking[]
- createdAt DateTime @default(now())
-}
-
-model Item {
- id          Int      @id @default(autoincrement())
- name        String
- description String?
- price       Int
- stock       Int
- image       String?
- bookingItems BookingItem[]
-}
-
-model Booking {
- id           Int           @id @default(autoincrement())
- bookingCode  String?       @unique
- userId       Int
- startDate    DateTime
- endDate      DateTime
- totalPrice   Int
- status       BookingStatus @default(PENDING_PAYMENT)
- user         User          @relation(fields: [userId], references: [id])
- items        BookingItem[]
- payment      Payment?
- expiredAt    DateTime?
- returnData   Return?
- createdAt    DateTime      @default(now())
-}
-
-model BookingItem {
- id        Int @id @default(autoincrement())
- bookingId Int
- itemId    Int
- quantity  Int
- price     Int
-
- booking Booking @relation(fields: [bookingId], references: [id])
- item    Item    @relation(fields: [itemId], references: [id])
-}
-
-model Payment {
- id           Int    @id @default(autoincrement())
- bookingId    Int    @unique
- amount       Int
- paymentProof String
- status       PaymentStatus @default(PENDING)
- booking      Booking @relation(fields: [bookingId], references: [id])
-}
-
-model Return {
- id        Int      @id @default(autoincrement())
- bookingId Int      @unique
- returnedAt DateTime
- note      String?
- fine      Int?
-
- booking Booking @relation(fields: [bookingId], references: [id])
-}
+// --- ENUMS ---
 
 enum Role {
- USER
- ADMIN
+  USER
+  ADMIN
 }
 
 enum BookingStatus {
- PENDING_PAYMENT
- WAITING_CONFIRMATION
- EXPIRED
- CONFIRMED
- RENTED
- FINISHED
- CANCELLED
+  PENDING_PAYMENT
+  WAITING_CONFIRMATION
+  EXPIRED
+  CONFIRMED
+  RENTED
+  FINISHED
+  CANCELLED
 }
 
 enum PaymentStatus {
- PENDING
- EXPIRED
- VERIFIED
- REJECTED
+  PENDING
+  EXPIRED
+  VERIFIED
+  REJECTED
+}
+
+// --- MODELS ---
+
+model User {
+  id        Int       @id @default(autoincrement())
+  name      String
+  email     String    @unique
+  password  String
+  role      Role      @default(USER)
+  bookings  Booking[]
+  createdAt DateTime  @default(now())
+}
+
+model Category {
+  id    Int    @id @default(autoincrement())
+  name  String
+  items Item[]
+}
+
+model Item {
+  id            Int            @id @default(autoincrement())
+  name          String
+  description   String?
+  price         Int
+  stock         Int
+  image         String?
+  categoryId    Int?
+  category      Category?      @relation(fields: [categoryId], references: [id])
+  bookingItems  BookingItem[]
+  package_items PackageItem[]
+}
+
+model Package {
+  id             Int           @id @default(autoincrement())
+  package_name   String
+  description    String?
+  min_capacity   Int
+  max_capacity   Int
+  discount_price Int
+  package_items  PackageItem[]
+  bookingItems   BookingItem[]
+}
+
+model PackageItem {
+  id         Int     @id @default(autoincrement())
+  package_id Int
+  package    Package @relation(fields: [package_id], references: [id], onDelete: Cascade)
+  item_id    Int
+  item       Item    @relation(fields: [item_id], references: [id], onDelete: Cascade)
+  quantity   Int
+
+  @@index([package_id])
+  @@index([item_id])
+}
+
+model Booking {
+  id          Int           @id @default(autoincrement())
+  bookingCode String?       @unique
+  userId      Int
+  startDate   DateTime
+  endDate     DateTime
+  totalPrice  Int
+  status      BookingStatus @default(PENDING_PAYMENT)
+  createdAt   DateTime      @default(now())
+  expiredAt   DateTime?
+
+  user         User          @relation(fields: [userId], references: [id])
+  items        BookingItem[]
+  payment      Payment?
+  returnLog    ReturnLog?    // Tambahan untuk fitur pengembalian
+}
+
+model BookingItem {
+  id        Int      @id @default(autoincrement())
+  bookingId Int
+  itemId    Int
+  packageId Int?
+  quantity  Int
+  price     Int      // Harga saat dibooking (fixed price)
+
+  booking   Booking  @relation(fields: [bookingId], references: [id])
+  item      Item     @relation(fields: [itemId], references: [id])
+  package   Package? @relation(fields: [packageId], references: [id])
+}
+
+model Payment {
+  id           Int           @id @default(autoincrement())
+  bookingId    Int           @unique
+  amount       Int
+  paymentProof String
+  status       PaymentStatus @default(PENDING)
+  booking      Booking       @relation(fields: [bookingId], references: [id])
+}
+
+model ReturnLog {
+  id          Int      @id @default(autoincrement())
+  bookingId   Int      @unique
+  returnDate  DateTime @default(now())
+  condition   String   // Misal: "Lengkap", "Rusak Ringan", "Hilang 1 pasak"
+  penalty     Int      @default(0)
+  
+  booking     Booking  @relation(fields: [bookingId], references: [id])
 }
