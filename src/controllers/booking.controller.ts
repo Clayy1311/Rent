@@ -2,6 +2,7 @@ import { Request, Response } from "express"
 import * as bookingService from "../services/booking.service"
 import { AuthRequest } from "../middleware/auth.middleware"
 import PDFDocument from "pdfkit";
+import prisma from "../config/prisma";
 
 export const createBooking = async (req: Request, res: Response) => {
   try {
@@ -68,55 +69,46 @@ export const mybookings = async(req: AuthRequest, res: Response) => {
 
 }
 
+export const mybookingsdetail = async(req: Request, res: Response) => {
+  try {
+    const bookingId = Number(req.params.id)
+    const bookings = await bookingService.bookingDetails(bookingId)
+
+    res.status(200).json(bookings)
+  }  catch(error)
+  {
+    res.json({
+      message: "internal server error"
+    })
+  }
+}
 export const downloadInvoice = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const booking = await bookingService.getBookingForInvoice(Number(id));
 
-    if (!booking) {
-      return res.status(404).json({ message: "Booking tidak ditemukan" });
-    }
+    const booking = await prisma.booking.findUnique({
+      where: { id: Number(id) },
+      include: {
+        user: true,
+        items: { include: { item: true } },
+      },
+    });
 
+    if (!booking) return res.status(404).json({ message: "Booking tidak ditemukan" });
+
+    // Inisialisasi PDF
     const doc = new PDFDocument({ margin: 50 });
 
-    // Header HTTP untuk download file
+    // Set Header untuk Download
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename=Invoice-${booking.bookingCode}.pdf`
-    );
+    res.setHeader("Content-Disposition", `attachment; filename=Invoice-${booking.bookingCode}.pdf`);
 
+    // Stream PDF langsung ke response
     doc.pipe(res);
 
-    // --- DESAIN INVOICE ---
-    doc.fontSize(20).text("AZKA OUTDOOR", { align: "center" });
-    doc.fontSize(10).text("Persewaan Alat Gunung Malang", { align: "center" });
-    doc.moveDown();
-    doc.hr; // Garis horizontal
+    // Panggil Service untuk mengisi konten PDF
+    bookingService.generateInvoicePDF(doc, booking);
 
-    doc.fontSize(12).text(`Invoice: ${booking.bookingCode}`);
-    doc.text(`Tanggal: ${new Date().toLocaleDateString()}`);
-    doc.text(`Nama Penyewa: ${booking.user.name}`);
-    doc.moveDown();
-
-    doc.text("Detail Sewa:", { underline: true });
-    booking.items.forEach((item, index) => {
-      doc.text(
-        `${index + 1}. ${item.item.name} x ${item.quantity} - Rp${item.price.toLocaleString()}`
-      );
-    });
-
-    doc.moveDown();
-    doc.fontSize(14).text(`TOTAL PEMBAYARAN: Rp${booking.totalPrice.toLocaleString()}`, {
-      bold: true
-    });
-
-    doc.moveDown();
-    doc.fontSize(10).text("Status: " + booking.status, {
-      color: booking.status === "CONFIRMED" ? "green" : "red"
-    });
-
-    doc.end();
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }

@@ -13,6 +13,7 @@ interface CreateBookingInput {
 }
 
 
+
 export const createBooking = async (userId: number, data: {
   itemId: number;
   startDate: string;
@@ -22,55 +23,56 @@ export const createBooking = async (userId: number, data: {
   const start = new Date(data.startDate);
   const end = new Date(data.endDate);
 
-  // 1. Ambil data Item untuk cek stok total dan harga
+  // 1. Ambil data Item (Cek stok total & harga)
   const item = await prisma.item.findUnique({
     where: { id: data.itemId }
   });
 
   if (!item) throw new Error("Item tidak ditemukan");
 
-  // 2. CEK OVERLAP & STOK (Core Logic)
-  // Cari booking yang bentrok di tanggal tersebut
+  // 2. LOGIKA OVERLAP DENGAN BUFFER TIME (H+1)
+  // Kita menghitung ketersediaan dengan menganggap setiap booking 
+  // memiliki "masa tenang" 1 hari setelah endDate.
   const overlappingBookings = await prisma.bookingItem.aggregate({
     _sum: { quantity: true },
     where: {
       itemId: data.itemId,
       booking: {
         status: {
-          in: [BookingStatus.CONFIRMED, BookingStatus.RENTED, BookingStatus.WAITING_CONFIRMATION]
+          in: [
+            BookingStatus.PENDING_PAYMENT,
+            BookingStatus.WAITING_CONFIRMATION,
+            BookingStatus.CONFIRMED,
+            BookingStatus.RENTED
+            // Tambahkan BookingStatus.OVERDUE jika ada di enum kamu
+          ]
         },
-        OR: [
-          {
-            AND: [
-              { startDate: { lte: start } },
-              { endDate: { gte: start } }
-            ]
-          },
-          {
-            AND: [
-              { startDate: { lte: end } },
-              { endDate: { gte: end } }
-            ]
-          },
-          {
-            AND: [
-              { startDate: { gte: start } },
-              { endDate: { lte: end } }
-            ]
+        // Logika Overlap Terkalibrasi:
+        // Mencari booking yang (Start <= End Baru) DAN (End + 1 Hari >= Start Baru)
+        AND: [
+          { startDate: { lte: end } },
+          { 
+            endDate: { 
+              // Buffer Time: start dikurangi 1 hari (24 jam)
+              // Artinya, booking lama yang berakhir kemarin masih dihitung overlap dengan hari ini
+              gte: new Date(start.getTime() - (24 * 60 * 60 * 1000)) 
+            } 
           }
         ]
       }
     }
   });
 
+  // Ambil total item yang sedang dipesan (jika null, jadikan 0)
   const bookedQuantity = overlappingBookings._sum.quantity || 0;
   const availableStock = item.stock - bookedQuantity;
 
+  // 3. VALIDASI STOK
   if (data.quantity > availableStock) {
-    throw new Error(`Stok tidak mencukupi. Tersedia: ${availableStock}, Anda meminta: ${data.quantity}`);
+    throw new Error(`Stok tidak mencukupi (termasuk waktu maintenance H+1). Tersedia: ${availableStock}, Anda meminta: ${data.quantity}`);
   }
 
-  // 3. JALANKAN TRANSACTION
+  // 4. JALANKAN TRANSACTION (Simpan ke DB)
   const totalPrice = item.price * data.quantity;
   const bookingCode = `INV-${Date.now()}-${userId}`;
 
@@ -84,16 +86,18 @@ export const createBooking = async (userId: number, data: {
         endDate: end,
         totalPrice,
         status: BookingStatus.PENDING_PAYMENT,
+      // Set 15 menit dari sekarang
+    expiredAt: new Date(Date.now() + 15 * 60 * 1000),
       }
     });
 
-    // B. Buat Detail Booking (BookingItem)
+    // B. Buat Detail Booking
     await tx.bookingItem.create({
       data: {
         bookingId: newBooking.id,
         itemId: data.itemId,
         quantity: data.quantity,
-        price: item.price // Simpan harga saat ini (fixed)
+        price: item.price
       }
     });
 
@@ -171,18 +175,106 @@ export const mybookings = async (userId: number) => {
   return bookings
 }
 
-
-export const getBookingForInvoice = async (bookingId: number) => {
-  return await prisma.booking.findUnique({
-    where: { id: bookingId },
+export const bookingDetails = async (bookingId: number) => {
+  const booking = await prisma.booking.findUnique({
+    where: {
+      id: bookingId, // Mencari berdasarkan field 'id'
+    },
     include: {
-      user: true,
       items: {
         include: {
-          item: true
-        }
+          item: true, // Sekalian ambil detail nama barangnya
+        },
       },
-      payment: true
-    }
+      user: true, // Sekalian ambil detail siapa yang menyewa
+      payment: true, // Sekalian ambil status pembayarannya
+    },
   });
+
+  return booking;
+};
+
+export const generateInvoicePDF = (doc: PDFKit.PDFDocument, booking: any) => {
+  // 1. HITUNG DURASI
+  const diff = new Date(booking.endDate).getTime() - new Date(booking.startDate).getTime();
+  const duration = Math.ceil(diff / (1000 * 60 * 60 * 24)) || 1;
+
+  // 2. HEADER (BRANDING)
+  doc.fillColor("#2d3436").fontSize(22).text("AZKA OUTDOOR", { align: "right" });
+  doc.fontSize(10).text("Persewaan Alat Gunung & Camping Malang", { align: "right" });
+  doc.text("Jl. Bendungan Sigura-gura, Malang", { align: "right" });
+  doc.text("WA: 0812-3456-7890 | IG: @azkaoutdoor", { align: "right" });
+  doc.moveDown();
+
+  doc.moveTo(50, 115).lineTo(550, 115).strokeColor("#dfe6e9").stroke();
+  doc.moveDown(2);
+
+  // 3. INFORMASI TRANSAKSI
+  const startY = doc.y;
+  doc.fillColor("#000000").fontSize(14).text("INVOICE PEMBAYARAN", { underline: true });
+  doc.fontSize(10).moveDown(0.5);
+  
+  doc.text(`Nama Penyewa : ${booking.user.name}`);
+  doc.text(`Email        : ${booking.user.email}`);
+  const statusColor = booking.status === "CONFIRMED" ? "#27ae60" : "#e74c3c";
+  doc.fillColor(statusColor).text(`Status       : ${booking.status}`).fillColor("#000000");
+
+  doc.text(`Kode Booking : ${booking.bookingCode}`, 350, startY + 25);
+  doc.text(`Tanggal Sewa : ${new Date(booking.startDate).toLocaleDateString('id-ID')}`, 350);
+  doc.text(`Tanggal Balik: ${new Date(booking.endDate).toLocaleDateString('id-ID')}`, 350);
+  doc.text(`Durasi       : ${duration} Hari`, 350);
+
+  doc.moveDown(4);
+
+  // 4. TABEL DETAIL BARANG
+  const tableTop = doc.y;
+  doc.fillColor("#2d3436").fontSize(11);
+  
+  doc.text("Item / Paket", 50, tableTop, { bold: true });
+  doc.text("Qty", 280, tableTop, { bold: true });
+  doc.text("Harga (Hari)", 350, tableTop, { bold: true });
+  doc.text("Subtotal", 480, tableTop, { bold: true });
+  
+  doc.moveTo(50, tableTop + 15).lineTo(550, tableTop + 15).strokeColor("#000000").stroke();
+  
+  let currentY = tableTop + 25;
+
+  booking.items.forEach((item: any) => {
+    const itemSubtotal = item.price * item.quantity * duration;
+    doc.text(item.item.name, 50, currentY);
+    doc.text(item.quantity.toString(), 280, currentY);
+    doc.text(`Rp${item.price.toLocaleString()}`, 350, currentY);
+    doc.text(`Rp${itemSubtotal.toLocaleString()}`, 480, currentY);
+    currentY += 20;
+  });
+
+  // 5. TOTAL & FOOTER
+ // 5. TOTAL & FOOTER
+ doc.moveTo(50, currentY + 10).lineTo(550, currentY + 10).stroke();
+ doc.moveDown(2);
+ 
+ doc.fontSize(14).fillColor("#d63031").text(
+   `TOTAL PEMBAYARAN: Rp${booking.totalPrice.toLocaleString()}`, 
+   { align: "right", bold: true }
+ );
+
+ doc.moveDown(4);
+ doc.fillColor("#636e72").fontSize(9);
+ doc.text("Syarat & Ketentuan:", { underline: true, bold: true });
+ doc.moveDown(0.3);
+ 
+ // Penambahan aturan Jam Operasional yang kamu minta
+ doc.text("1. Pengambilan barang minimal dilakukan pada hari mulai sewa mulai pukul 06.00 WIB.");
+ doc.text("2. Pengembalian barang maksimal dilakukan pada hari berakhir sewa pukul 23.59 WIB (Jam 12 Malam).");
+ doc.text("3. Keterlambatan pengembalian melewati batas waktu akan dikenakan DENDA sesuai tarif yang berlaku.");
+ doc.text("4. Harap membawa KTP/KTM asli sebagai jaminan saat pengambilan alat.");
+ doc.text("5. Segala kerusakan atau kehilangan alat menjadi tanggung jawab penuh penyewa.");
+
+ doc.moveDown(2);
+ doc.fillColor("#2d3436").fontSize(10).text(
+   "Terima kasih telah mempercayakan petualangan Anda pada Azka Outdoor!", 
+   { align: "center", italic: true }
+ );
+
+ doc.end();
 };

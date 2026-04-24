@@ -88,20 +88,24 @@ model PackageItem {
 }
 
 model Booking {
-  id          Int           @id @default(autoincrement())
-  bookingCode String?       @unique
-  userId      Int
-  startDate   DateTime
-  endDate     DateTime
-  totalPrice  Int
-  status      BookingStatus @default(PENDING_PAYMENT)
-  createdAt   DateTime      @default(now())
-  expiredAt   DateTime?
+  id                Int           @id @default(autoincrement())
+  bookingCode       String?       @unique
+  userId            Int
+  startDate         DateTime
+  endDate           DateTime
+  totalPrice        Int
+  status            BookingStatus @default(PENDING_PAYMENT)
+  createdAt         DateTime      @default(now())
+  expiredAt         DateTime?
+  
+  // Field tambahan untuk operasional admin (Opsi 1)
+  actualReturnDate  DateTime?     // Tanggal asli barang dikembalikan
+  penaltyAmount     Int?          @default(0)
+  adminNote         String?       // Catatan kondisi barang
 
-  user         User          @relation(fields: [userId], references: [id])
-  items        BookingItem[]
-  payment      Payment?
-  returnLog    ReturnLog?    // Tambahan untuk fitur pengembalian
+  user              User          @relation(fields: [userId], references: [id])
+  items             BookingItem[]
+  payment           Payment?
 }
 
 model BookingItem {
@@ -126,12 +130,3 @@ model Payment {
   booking      Booking       @relation(fields: [bookingId], references: [id])
 }
 
-model ReturnLog {
-  id          Int      @id @default(autoincrement())
-  bookingId   Int      @unique
-  returnDate  DateTime @default(now())
-  condition   String   // Misal: "Lengkap", "Rusak Ringan", "Hilang 1 pasak"
-  penalty     Int      @default(0)
-  
-  booking     Booking  @relation(fields: [bookingId], references: [id])
-}

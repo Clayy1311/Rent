@@ -7,8 +7,10 @@ import itemRoutes from "./routes/item.routes"
 import bookingRoutes from "./routes/booking.routes"
 import paymentRoutes from "./routes/payment.routes"
 import categoryRoutes from "./routes/category.routes"
+import packageRoutes from "./routes/package.routes"
 import path from "node:path"
 import { fileURLToPath } from "node:url" // <--- Tambahkan ini
+import adminRoutes from "./routes/admin.routes"
 
 // --- Tambahkan 2 baris ini untuk fix __dirname ---
 const __filename = fileURLToPath(import.meta.url);
@@ -33,5 +35,7 @@ app.use("/items", itemRoutes)
 app.use("/bookings", bookingRoutes)
 app.use("/payments", paymentRoutes)
 app.use("/category", categoryRoutes)
+app.use("/package",packageRoutes)
+app.use("/admin",adminRoutes)
 
 export default app

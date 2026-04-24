@@ -11,7 +11,7 @@ export const generateToken = (id: number, role: string) => {
     { id, role },
     JWT_SECRET,
     {
-      expiresIn: "15m"
+      expiresIn: "1d"
     }
   )
 }

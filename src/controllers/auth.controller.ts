@@ -1,6 +1,7 @@
 import { Request, Response } from "express"
 import prisma from "../config/prisma"
 import bcrypt from "bcrypt" 
+import * as authService from "../services/auth.service"
 import { generateToken } from "../utils/jwt"
 
 export const register = async (req: Request, res: Response) => {
@@ -82,3 +83,23 @@ export const login = async (req: Request, res: Response) => {
     res.status(500).json(error)
   }
 }
+
+export const getMe = async (req: Request, res: Response) => {
+  try {
+    // Ambil id dari req.user (hasil dekorasi middleware verifyToken)
+    const userId = (req as any).user.id;
+
+    const user = await authService.getUserProfile(userId);
+
+    if (!user) {
+      return res.status(404).json({ status: "error", message: "User tidak ditemukan" });
+    }
+
+    res.status(200).json({
+      status: "success",
+      data: user,
+    });
+  } catch (error: any) {
+    res.status(500).json({ status: "error", message: error.message });
+  }
+};

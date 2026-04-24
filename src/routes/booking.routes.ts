@@ -3,10 +3,12 @@ import {Router} from "express"
 import {createBooking} from "../controllers/booking.controller"
 import { authMiddleware } from "../middleware/auth.middleware"
 import { mybookings, downloadInvoice } from "../controllers/booking.controller"
+import { mybookingsdetail } from "../controllers/booking.controller"
 const router = express.Router()
 
 router.post("/",authMiddleware, createBooking)
 router.get("/mybookings", authMiddleware, mybookings)
+router.get("/mybookingsdetail/:id", authMiddleware,mybookingsdetail)
 router.get("/:id/invoice", downloadInvoice);
 
 export default router
