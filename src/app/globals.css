@@ -1,8 +1,11 @@
 @import "tailwindcss";
-
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@layer base {
+  :root {
+    /* Teal Color (Adaptasi dari referensi) */
+    --primary: 184 96% 23%; /* HSL dari #014C51 */
+    --primary-foreground: 184 96% 98%;
+    /* ... rest of base config */
+  }
 }
 
 @theme inline {
