@@ -142,3 +142,21 @@ export const downloadExcelReport = async (req: Request, res: Response) => {
     res.status(500).json({ status: "error", message: error.message });
   }
 };
+export const getDetail = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const data = await adminService.getBookingDetail(Number(id));
+    
+    res.status(200).json({
+      status: "success",
+      data,
+    });
+  } catch (error: any) {
+    res.status(404).json({
+      status: "error",
+      message: error.message,
+    });
+  }
+};
+
+

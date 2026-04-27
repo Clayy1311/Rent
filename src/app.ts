@@ -15,6 +15,8 @@ import adminRoutes from "./routes/admin.routes"
 // --- Tambahkan 2 baris ini untuk fix __dirname ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const uploadsPath = path.join(__dirname, "../uploads");
+console.log("Gambar dibaca dari folder:", uploadsPath);
 // ------------------------------------------------
 
 const app = express()
@@ -28,7 +30,8 @@ cron.schedule("* * * * *", async () => {
 })
 
 // Sekarang __dirname sudah bisa dipakai
-app.use("/uploads", express.static(path.join(__dirname, "../public/uploads")));
+app.use("/uploads", express.static(uploadsPath));
+
 
 app.use("/auth", authRoutes)
 app.use("/items", itemRoutes)

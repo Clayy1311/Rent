@@ -232,3 +232,28 @@ export const getRevenueData = async (from?: string, to?: string) => {
     orderBy: { createdAt: "asc" },
   });
 };
+
+export const getBookingDetail = async (id: number) => {
+  const booking = await prisma.booking.findUnique({
+    where: { id },
+    include: {
+      user: {
+        select: {
+          name: true,
+          email: true,
+        
+        },
+      },
+      items: {
+        include: {
+          item: true, // Supaya admin tahu barang apa saja yang dipesan
+        },
+      },
+      payment: true, // WAJIB: Supaya admin bisa lihat bukti transfer
+    },
+  });
+
+  if (!booking) throw new Error("Data pesanan tidak ditemukan");
+  
+  return booking;
+};
