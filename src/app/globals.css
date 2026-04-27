@@ -1,10 +1,12 @@
 @import "tailwindcss";
+
 @layer base {
   :root {
-    /* Teal Color (Adaptasi dari referensi) */
-    --primary: 184 96% 23%; /* HSL dari #014C51 */
+    /* Teal Color */
+    --primary: 184 96% 23%; 
     --primary-foreground: 184 96% 98%;
-    /* ... rest of base config */
+    --background: #ffffff;
+    --foreground: #0f172a;
   }
 }
 
@@ -13,6 +15,21 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* --- TAMBAHKAN ANIMASI DI SINI (V4 STYLE) --- */
+  --animate-marquee: marquee 30s linear infinite;
+  --animate-marquee2: marquee2 30s linear infinite;
+
+  @keyframes marquee {
+    from { transform: translateX(0%); }
+    to { transform: translateX(-100%); }
+  }
+
+  @keyframes marquee2 {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0%); }
+  }
+  /* -------------------------------------------- */
 }
 
 @media (prefers-color-scheme: dark) {

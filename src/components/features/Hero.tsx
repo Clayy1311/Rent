@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 
 export function Hero() {
   return (
-    <section className="container mx-auto px-6 py-20 md:py-32 grid md:grid-cols-2 gap-16 items-center">
+    <section className="container mx-auto px-6  md:py-32 grid md:grid-cols-2 gap-16 items-center">
       <div>
         <h1 className="text-5xl md:text-7xl font-extrabold tracking-tighter text-slate-950 leading-[0.95] mb-6">
           Peralatan lengkap,<br /> petualangan <span className="text-primary">sempurna.</span>
@@ -11,12 +11,7 @@ export function Hero() {
         <p className="text-lg text-slate-600 mb-12 max-w-md">
           Sewa alat outdoor kualitas premium dengan proses cepat. Pilih alatmu, tentukan tanggal, dan berangkat!
         </p>
-        <div className="flex flex-col sm:flex-row gap-3 bg-white border border-slate-100 p-2 rounded-full shadow-2xl max-w-lg">
-          <input type="text" placeholder="Cari alat..." className="flex-1 px-6 h-14 rounded-full focus:outline-none text-lg" />
-          <Button size="lg" className="rounded-full h-14 px-8 text-lg font-bold gap-2">
-            Cari Sekarang <ArrowRight className="h-5 w-5" />
-          </Button>
-        </div>
+        
       </div>
 
       <div className="relative h-[500px] w-full flex items-center justify-center">
@@ -24,14 +19,14 @@ export function Hero() {
         <div className="absolute left-10 top-0 bg-white p-5 rounded-2xl shadow-2xl w-56 transform rotate-[-2deg] border border-slate-50 z-20">
           <div className="flex items-center gap-3 mb-3">
             <Briefcase className="h-5 w-5 text-orange-600"/>
-            <span className="text-[10px] font-bold text-slate-400 uppercase">Terlaris</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase">Mountain</span>
           </div>
           <img src="/image/2.jpg" alt="Gear" className="h-36 w-full object-contain mb-3" />
-          <h4 className="font-bold text-slate-900">Cooking Set</h4>
+          <h4 className="font-bold text-slate-900">Outdoor</h4>
         </div>
         <div className="absolute right-0 top-20 bg-primary p-6 rounded-2xl shadow-2xl w-64 transform rotate-[6deg] z-30">
           <img src="/image/1.jpg" alt="Tenda" className="h-44 w-auto mx-auto mb-4 object-contain" />
-          <h4 className="font-bold text-white text-xl">Tenda Eiger 4P</h4>
+          <h4 className="font-bold text-white text-xl">Mountain</h4>
         </div>
       </div>
     </section>
