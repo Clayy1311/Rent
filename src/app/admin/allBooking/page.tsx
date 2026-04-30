@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import api from "@/lib/axios";
 import { useBookings } from "@/hooks/useBooking";
+import { downloadReport } from "@/service/reportService";
 import { 
   Eye, 
   Loader2, 
@@ -10,16 +11,22 @@ import {
   RefreshCcw, 
   ChevronLeft, 
   ChevronRight,
-  ImageIcon
+  Download,
+  Calendar as CalendarIcon
 } from "lucide-react";
 import { toast } from "sonner";
 import { DetailBookingModal } from "@/components/admin/DetailBookingModal";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "../../../../lib/utils";
 
 export default function AdminAllBookingsPage() {
   const { data, loading, meta, handleSearch, handleStatusFilter, handlePageChange, filters, refresh } = useBookings();
   const [searchTerm, setSearchTerm] = useState("");
+
+  // State untuk Report
+  const [dateRange, setDateRange] = useState({ from: "", to: "" });
+  const [downloadLoading, setDownloadLoading] = useState(false);
 
   // State untuk Modal Detail
   const [detailData, setDetailData] = useState<any>(null);
@@ -47,10 +54,26 @@ export default function AdminAllBookingsPage() {
     }
   };
 
+  const handleDownload = async () => {
+    if (!dateRange.from || !dateRange.to) {
+      return toast.error("Pilih rentang tanggal report lebih dulu!");
+    }
+    try {
+      setDownloadLoading(true);
+      await downloadReport(dateRange.from, dateRange.to);
+      toast.success("Report berhasil diunduh!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Gagal mengunduh report. Cek koneksi atau server.");
+    } finally {
+      setDownloadLoading(false);
+    }
+  };
+
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      {/* HEADER: Bold, Italic, Uppercase */}
-      <div className="flex justify-between items-end">
+    <div className="space-y-8 animate-in fade-in duration-500 pb-10">
+      {/* HEADER & REPORT CONTROL */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6">
         <div>
           <h1 className="text-4xl font-black text-slate-950 tracking-tight uppercase italic">
             Semua <span className="text-blue-600">Pesanan</span>
@@ -59,32 +82,60 @@ export default function AdminAllBookingsPage() {
             Database seluruh transaksi penyewaan Azka Outdoor.
           </p>
         </div>
-        <button 
-          onClick={refresh}
-          className="p-3 bg-slate-100 hover:bg-slate-200 rounded-2xl transition-all text-slate-600"
-          title="Refresh Data"
-        >
-          <RefreshCcw size={20} className={loading ? "animate-spin" : ""} />
-        </button>
+
+        {/* CUSTOM REPORT DOWNLOADER */}
+        <div className="flex flex-wrap items-center gap-3 bg-white p-3 rounded-[30px] border border-slate-100 shadow-sm">
+          <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 rounded-2xl border border-slate-100">
+            <CalendarIcon size={14} className="text-blue-600" />
+            <input 
+              type="date" 
+              className="bg-transparent border-none text-[10px] font-black uppercase outline-none text-slate-900"
+              onChange={(e) => setDateRange({...dateRange, from: e.target.value})}
+            />
+            <span className="text-[10px] font-black text-slate-300 italic uppercase">to</span>
+            <input 
+              type="date" 
+              className="bg-transparent border-none text-[10px] font-black uppercase outline-none text-slate-900"
+              onChange={(e) => setDateRange({...dateRange, to: e.target.value})}
+            />
+          </div>
+          
+          <button 
+            onClick={handleDownload}
+            disabled={downloadLoading}
+            className="flex items-center gap-2 px-6 py-4 bg-slate-950 hover:bg-blue-600 text-white rounded-2xl transition-all font-black text-[10px] italic tracking-[0.15em] uppercase shadow-lg disabled:opacity-50 active:scale-95"
+          >
+            {downloadLoading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+            Download Report
+          </button>
+          
+          <button 
+            onClick={refresh}
+            className="p-4 bg-slate-100 hover:bg-slate-200 rounded-2xl transition-all text-slate-600 border border-slate-100"
+            title="Refresh Data"
+          >
+            <RefreshCcw size={18} className={loading ? "animate-spin" : ""} />
+          </button>
+        </div>
       </div>
 
-      {/* FILTER BAR: Seirama dengan input style */}
+      {/* FILTER BAR */}
       <div className="flex flex-col md:flex-row gap-4 items-center">
         <div className="relative flex-1 w-full">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <Input 
             placeholder="Cari Kode Booking atau Nama..." 
-            className="pl-11 py-6 rounded-[20px] border-slate-100 bg-white text-slate-950 font-bold placeholder:text-slate-400 shadow-sm"
+            className="pl-11 py-7 rounded-[24px] border-slate-100 bg-white text-slate-950 font-bold placeholder:text-slate-400 shadow-sm focus:ring-2 focus:ring-blue-600/20 transition-all"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         
         <Select onValueChange={handleStatusFilter}>
-          <SelectTrigger className="w-full md:w-[240px] py-6 rounded-[20px] border-slate-100 text-slate-950 font-black uppercase italic text-[10px] bg-white shadow-sm tracking-widest">
+          <SelectTrigger className="w-full md:w-[260px] py-7 rounded-[24px] border-slate-100 text-slate-950 font-black uppercase italic text-[10px] bg-white shadow-sm tracking-widest">
             <SelectValue placeholder="FILTER STATUS" />
           </SelectTrigger>
-          <SelectContent className="rounded-2xl font-bold uppercase text-[10px] tracking-widest">
+          <SelectContent className="rounded-2xl font-bold uppercase text-[10px] tracking-widest border-slate-100 shadow-xl">
             <SelectItem value="ALL">SEMUA STATUS</SelectItem>
             <SelectItem value="WAITING_CONFIRMATION">WAITING CONFIRMATION</SelectItem>
             <SelectItem value="PAID">PAID</SelectItem>
@@ -94,63 +145,71 @@ export default function AdminAllBookingsPage() {
         </Select>
       </div>
 
-      {/* TABLE: Rounded [40px] */}
-      <div className="bg-white border border-slate-100 rounded-[40px] overflow-hidden shadow-sm">
+      {/* TABLE SECTION */}
+      <div className="bg-white border border-slate-100 rounded-[45px] overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-slate-400 uppercase text-[10px] font-bold tracking-widest">
+          <table className="w-full text-left text-sm border-collapse">
+            <thead className="bg-slate-50/50 text-slate-400 uppercase text-[10px] font-black tracking-[0.2em]">
               <tr>
-                <th className="px-8 py-5">Pelanggan</th>
-                <th className="px-8 py-5">Invoice</th>
-                <th className="px-8 py-5 text-center">Status</th>
-                <th className="px-8 py-5">Total Harga</th>
-                <th className="px-8 py-5 text-center">Tindakan</th>
+                <th className="px-10 py-7">Pelanggan</th>
+                <th className="px-10 py-7">Invoice</th>
+                <th className="px-10 py-7 text-center">Status</th>
+                <th className="px-10 py-7">Total Harga</th>
+                <th className="px-10 py-7 text-center">Tindakan</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="p-20 text-center">
-                    <Loader2 className="animate-spin mx-auto text-blue-600 mb-2" />
-                    <p className="text-xs text-slate-400 font-bold uppercase tracking-tighter">Sinkronisasi Data...</p>
+                  <td colSpan={5} className="p-32 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <Loader2 className="animate-spin text-blue-600" size={40} />
+                      <p className="text-[10px] font-black text-slate-400 uppercase italic tracking-widest">Sinkronisasi Database...</p>
+                    </div>
                   </td>
                 </tr>
               ) : data.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="p-20 text-center text-slate-300 font-bold uppercase text-xs tracking-widest">
+                  <td colSpan={5} className="p-32 text-center text-slate-300 font-black uppercase italic text-xs tracking-widest opacity-40">
                     Data tidak ditemukan
                   </td>
                 </tr>
               ) : (
                 data.map((item) => (
-                  <tr key={item.id} className="hover:bg-slate-50/50 transition-colors group">
-                    <td className="px-8 py-6">
-                      <div className="font-black text-slate-900 uppercase tracking-tighter">{item.user?.name}</div>
-                      <div className="text-[10px] text-slate-400 font-medium">{item.user?.email}</div>
+                  <tr key={item.id} className="hover:bg-slate-50/80 transition-all group">
+                    <td className="px-10 py-7">
+                      <div className="font-black text-slate-900 uppercase italic tracking-tighter text-base leading-tight">{item.user?.name}</div>
+                      <div className="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-tighter">{item.user?.email}</div>
                     </td>
-                    <td className="px-8 py-6 font-mono text-xs font-bold text-blue-600 italic">
-                      #{item.bookingCode}
+                    <td className="px-10 py-7">
+                      <div className="flex items-center gap-2 font-mono text-xs font-black text-blue-600 bg-blue-50 w-fit px-3 py-1 rounded-lg italic">
+                        #{item.bookingCode}
+                      </div>
                     </td>
-                    <td className="px-8 py-6 text-center">
-                      <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-tighter border ${
+                    <td className="px-10 py-7 text-center">
+                      <span className={cn(
+                        "px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border italic",
                         item.status === 'PAID' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
                         item.status === 'WAITING_CONFIRMATION' ? 'bg-orange-50 text-orange-600 border-orange-100' :
                         'bg-slate-50 text-slate-600 border-slate-100'
-                      }`}>
+                      )}>
                         {item.status.replace('_', ' ')}
                       </span>
                     </td>
-                    <td className="px-8 py-6 font-black text-slate-950 text-base">
-                      Rp {item.totalPrice?.toLocaleString("id-ID")}
+                    <td className="px-10 py-7">
+                      <div className="font-black text-slate-950 text-lg italic tracking-tighter">
+                        Rp {item.totalPrice?.toLocaleString("id-ID")}
+                      </div>
                     </td>
-                    <td className="px-8 py-6">
+                    <td className="px-10 py-7">
                       <div className="flex justify-center">
                         <button 
                           onClick={() => handleViewDetail(item.id)}
                           disabled={detailLoading}
-                          className="p-3 bg-white border border-slate-100 hover:border-blue-600 text-slate-400 hover:text-blue-600 rounded-2xl transition-all shadow-sm"
+                          className="flex items-center gap-2 px-5 py-3 bg-white border border-slate-200 hover:border-blue-600 text-slate-900 hover:text-blue-600 rounded-2xl transition-all shadow-sm active:scale-90 font-black text-[9px] uppercase italic tracking-widest"
                         >
-                          {detailLoading ? <Loader2 size={18} className="animate-spin" /> : <Eye size={18} />}
+                          {detailLoading ? <Loader2 size={14} className="animate-spin" /> : <Eye size={14} />}
+                          Detail
                         </button>
                       </div>
                     </td>
@@ -162,35 +221,35 @@ export default function AdminAllBookingsPage() {
         </div>
       </div>
 
-      {/* PAGINATION: Identik dengan gaya admin-mu */}
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">
-          Total Data: <span className="text-slate-950">{meta.totalData}</span>
+      {/* PAGINATION */}
+      <div className="flex flex-col md:flex-row justify-between items-center gap-6 px-4">
+        <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] italic">
+          Data Azka Outdoor: <span className="text-slate-950 underline">{meta.totalData} Terdeteksi</span>
         </p>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <button 
             disabled={filters.page === 1} 
             onClick={() => handlePageChange(filters.page - 1)}
-            className="h-11 w-11 flex items-center justify-center rounded-xl border border-slate-100 bg-white text-slate-950 disabled:opacity-30 transition-all shadow-sm"
+            className="h-14 w-14 flex items-center justify-center rounded-[20px] border border-slate-100 bg-white text-slate-950 disabled:opacity-30 transition-all shadow-sm hover:bg-slate-50 active:scale-90"
           >
-            <ChevronLeft size={18} />
+            <ChevronLeft size={22} />
           </button>
           
-          <div className="bg-slate-950 text-white h-11 px-6 rounded-xl flex items-center justify-center font-black text-[10px] italic tracking-tighter uppercase">
-            Halaman {meta.currentPage} / {meta.totalPages}
+          <div className="bg-slate-950 text-white h-14 px-8 rounded-[20px] flex items-center justify-center font-black text-[11px] italic tracking-widest uppercase shadow-xl">
+            {meta.currentPage} <span className="mx-2 text-slate-500">/</span> {meta.totalPages}
           </div>
 
           <button 
             disabled={filters.page === meta.totalPages} 
             onClick={() => handlePageChange(filters.page + 1)}
-            className="h-11 w-11 flex items-center justify-center rounded-xl border border-slate-100 bg-white text-slate-950 disabled:opacity-30 transition-all shadow-sm"
+            className="h-14 w-14 flex items-center justify-center rounded-[20px] border border-slate-100 bg-white text-slate-950 disabled:opacity-30 transition-all shadow-sm hover:bg-slate-50 active:scale-90"
           >
-            <ChevronRight size={18} />
+            <ChevronRight size={22} />
           </button>
         </div>
       </div>
 
-      {/* Modal Detail */}
+      {/* MODAL DETAIL */}
       <DetailBookingModal 
         isOpen={isDetailOpen}
         onClose={() => setIsDetailOpen(false)}
