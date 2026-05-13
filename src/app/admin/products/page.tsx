@@ -7,33 +7,69 @@ import { ProductTable } from "@/components/admin/ProductTable";
 import { PackageTable } from "@/components/admin/PackageTable";
 import { CreateItemModal } from "@/components/admin/CreateItemModal";
 import { CreatePackageModal } from "@/components/admin/CreatePackageModal";
+import api from "@/lib/axios";
+import { toast } from "sonner";
 
 export default function InventoryPage() {
   const [activeTab, setActiveTab] = useState<"PRODUCT" | "PACKAGE">("PRODUCT");
-  
-  // State untuk kontrol masing-masing modal
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [isPackageModalOpen, setIsPackageModalOpen] = useState(false);
-  
-  // State untuk mentrigger refresh data tabel tanpa reload satu halaman
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [selectedPackage, setSelectedPackage] = useState<any>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const handleRefresh = () => {
     setRefreshKey((prev) => prev + 1);
   };
 
-  // Fungsi untuk handle klik tombol "Tambah" sesuai tab aktif
   const handleAddClick = () => {
     if (activeTab === "PRODUCT") {
+      setSelectedProduct(null);
       setIsItemModalOpen(true);
     } else {
+      setSelectedPackage(null);
       setIsPackageModalOpen(true);
     }
   };
 
+  const handleDeleteProduct = async (id: number) => {
+    const confirmDelete = confirm("Yakin ingin menghapus item produk ini?");
+    if (!confirmDelete) return;
+
+    try {
+      await api.delete(`/items/${id}`);
+      toast.success("Item berhasil dihapus");
+      handleRefresh();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Gagal menghapus item");
+    }
+  };
+
+  const handleEditProductClick = (product: any) => {
+    setSelectedProduct(product);
+    setIsItemModalOpen(true);
+  };
+
+  const handleDeletePackage = async (id: number) => {
+    const confirmDelete = confirm("Yakin ingin menghapus paket bundling ini?");
+    if (!confirmDelete) return;
+
+    try {
+      await api.delete(`/package/${id}`);
+      toast.success("Paket berhasil dihapus");
+      handleRefresh();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Gagal menghapus paket");
+    }
+  };
+
+  const handleEditPackageClick = (pkg: any) => {
+    setSelectedPackage(pkg);
+    setIsPackageModalOpen(true);
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      {/* HEADER SECTION */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
           <h1 className="text-4xl font-black text-slate-950 tracking-tight uppercase italic">
@@ -53,7 +89,6 @@ export default function InventoryPage() {
         </button>
       </div>
 
-      {/* NAVIGATION TABS */}
       <div className="flex p-1 bg-slate-100 w-fit rounded-[24px] border border-slate-200/50">
         <TabButton 
           active={activeTab === "PRODUCT"} 
@@ -69,38 +104,47 @@ export default function InventoryPage() {
         />
       </div>
 
-      {/* TABLE CONTAINER */}
       <div className="bg-white border border-slate-100 rounded-[40px] overflow-hidden shadow-sm min-h-[400px]">
         <div className="overflow-x-auto">
           {activeTab === "PRODUCT" ? (
-            <ProductTable key={`prod-${refreshKey}`} />
+            <ProductTable 
+              key={`prod-${refreshKey}`} 
+              onDelete={handleDeleteProduct}
+              onEdit={handleEditProductClick}
+            />
           ) : (
-            <PackageTable key={`pkg-${refreshKey}`} />
+            <PackageTable 
+              key={`pkg-${refreshKey}`} 
+              onDelete={handleDeletePackage}
+              onEdit={handleEditPackageClick}
+            />
           )}
         </div>
       </div>
 
-      {/* MODAL UNTUK TAMBAH SINGLE ITEM */}
       <CreateItemModal 
         isOpen={isItemModalOpen}
-        onClose={() => setIsItemModalOpen(false)}
+        onClose={() => {
+          setIsItemModalOpen(false);
+          setSelectedProduct(null);
+        }}
+        initialData={selectedProduct}
         onSuccess={handleRefresh}
       />
 
-      {/* MODAL UNTUK TAMBAH PAKET BUNDLING */}
       <CreatePackageModal 
         isOpen={isPackageModalOpen}
-        onClose={() => setIsPackageModalOpen(false)}
+        onClose={() => {
+          setIsPackageModalOpen(false);
+          setSelectedPackage(null);
+        }}
+        initialData={selectedPackage}
         onSuccess={handleRefresh}
       />
     </div>
   );
 }
 
-/**
- * Sub-komponen TabButton 
- * Dipisah di bawah agar kode utama InventoryPage tetap ringkas
- */
 function TabButton({ 
   active, 
   onClick, 

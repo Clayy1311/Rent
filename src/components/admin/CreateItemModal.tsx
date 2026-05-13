@@ -1,24 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react"; // Tambahkan useEffect
+import { useState, useEffect } from "react";
 import { X, Upload, Loader2, ChevronDown } from "lucide-react";
 import api from "@/lib/axios";
 import { toast } from "sonner";
-
-interface Category {
-  id: number;
-  name: string;
-}
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  initialData?: any; // Tambahkan prop ini
 }
 
-export function CreateItemModal({ isOpen, onClose, onSuccess }: Props) {
+export function CreateItemModal({ isOpen, onClose, onSuccess, initialData }: Props) {
   const [loading, setLoading] = useState(false);
-  const [categories, setCategories] = useState<Category[]>([]); // State simpan kategori
+  const [categories, setCategories] = useState<any[]>([]);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
@@ -30,18 +26,28 @@ export function CreateItemModal({ isOpen, onClose, onSuccess }: Props) {
     image: null as File | null,
   });
 
-  // Fetching kategori saat modal terbuka
+  // Sync data saat mode EDIT diaktifkan
+  useEffect(() => {
+    if (isOpen && initialData) {
+      setFormData({
+        name: initialData.name || "",
+        description: initialData.description || "",
+        price: initialData.price?.toString() || "",
+        stock: initialData.stock?.toString() || "",
+        categoryId: initialData.categoryId?.toString() || "",
+        image: null,
+      });
+      setImagePreview(initialData.imageUrl || null);
+    } else if (isOpen && !initialData) {
+      // Reset form jika mode TAMBAH
+      setFormData({ name: "", description: "", price: "", stock: "", categoryId: "", image: null });
+      setImagePreview(null);
+    }
+  }, [isOpen, initialData]);
+
   useEffect(() => {
     if (isOpen) {
-      const fetchCategories = async () => {
-        try {
-          const res = await api.get("/category");
-          setCategories(res.data.data || []);
-        } catch (err) {
-          console.error("Failed to fetch categories", err);
-        }
-      };
-      fetchCategories();
+      api.get("/category").then(res => setCategories(res.data.data || []));
     }
   }, [isOpen]);
 
@@ -57,9 +63,8 @@ export function CreateItemModal({ isOpen, onClose, onSuccess }: Props) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.categoryId) return toast.error("Pilih kategori dulu, Prof!");
-    
     setLoading(true);
+    
     try {
       const data = new FormData();
       data.append("name", formData.name);
@@ -69,18 +74,22 @@ export function CreateItemModal({ isOpen, onClose, onSuccess }: Props) {
       data.append("categoryId", formData.categoryId);
       if (formData.image) data.append("image", formData.image);
 
-      await api.post("/items", data, {
+      const isEdit = !!initialData;
+      const url = isEdit ? `/items/${initialData.id}` : "/items";
+      const method = isEdit ? "put" : "post"; // Gunakan PATCH untuk update
+
+      await api({
+        method,
+        url,
+        data,
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      toast.success("Item Berhasil Ditambahkan!");
+      toast.success(isEdit ? "Item Berhasil Diupdate!" : "Item Berhasil Ditambahkan!");
       onSuccess();
       onClose();
-      // Reset
-      setFormData({ name: "", description: "", price: "", stock: "", categoryId: "", image: null });
-      setImagePreview(null);
     } catch (err: any) {
-      toast.error(err.response?.data?.message || "Gagal menambah produk");
+      toast.error(err.response?.data?.message || "Terjadi kesalahan server");
     } finally {
       setLoading(false);
     }
@@ -88,17 +97,16 @@ export function CreateItemModal({ isOpen, onClose, onSuccess }: Props) {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/40 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="bg-white w-full max-w-md rounded-[35px] overflow-hidden shadow-2xl animate-in zoom-in-95 border border-slate-100">
-        
+      <div className="bg-white w-full max-w-md rounded-[35px] overflow-hidden shadow-2xl border border-slate-100">
         <div className="px-6 py-5 border-b border-slate-50 flex justify-between items-center">
           <h2 className="text-lg font-black uppercase italic tracking-tighter text-slate-950">
-            New <span className="text-blue-600">Item</span>
+            {initialData ? "Edit" : "New"} <span className="text-blue-600">Item</span>
           </h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-900"><X size={20} /></button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
-          {/* Upload Image */}
+          {/* UPLOAD SECTION */}
           <div 
             className="relative h-32 w-full border-2 border-dashed border-slate-100 rounded-2xl flex flex-col items-center justify-center bg-slate-50 cursor-pointer overflow-hidden group hover:border-blue-400 transition-all"
             onClick={() => document.getElementById('fileInput')?.click()}
@@ -115,33 +123,18 @@ export function CreateItemModal({ isOpen, onClose, onSuccess }: Props) {
           </div>
 
           <div className="space-y-3">
-            {/* Input Name */}
             <div className="space-y-1">
               <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 px-1">Item Name</label>
-              <input 
-                required
-                className="w-full px-4 py-3 bg-slate-50 rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-blue-600/10"
-                placeholder="E.g. Tenda Eiger 4P"
-                value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
-              />
+              <input required className="w-full px-4 py-3 bg-slate-50 rounded-xl font-bold text-sm outline-none" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
             </div>
 
-            {/* Select Category */}
             <div className="space-y-1">
               <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 px-1">Category</label>
               <div className="relative">
-                <select 
-                  required
-                  className="w-full px-4 py-3 bg-slate-50 rounded-xl font-bold text-sm outline-none appearance-none focus:ring-2 focus:ring-blue-600/10 cursor-pointer"
-                  value={formData.categoryId}
-                  onChange={(e) => setFormData({...formData, categoryId: e.target.value})}
-                >
+                <select required className="w-full px-4 py-3 bg-slate-50 rounded-xl font-bold text-sm outline-none appearance-none cursor-pointer" value={formData.categoryId} onChange={(e) => setFormData({...formData, categoryId: e.target.value})}>
                   <option value="" disabled>Pilih Kategori</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name.toUpperCase()}
-                    </option>
+                  {categories.map((cat: any) => (
+                    <option key={cat.id} value={cat.id}>{cat.name.toUpperCase()}</option>
                   ))}
                 </select>
                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
@@ -165,12 +158,8 @@ export function CreateItemModal({ isOpen, onClose, onSuccess }: Props) {
             </div>
           </div>
 
-          <button 
-            type="submit"
-            disabled={loading}
-            className="w-full py-4 bg-slate-950 hover:bg-blue-600 text-white rounded-2xl font-black uppercase italic tracking-widest text-xs transition-all active:scale-95 disabled:opacity-50"
-          >
-            {loading ? <Loader2 className="animate-spin mx-auto" size={18} /> : "Save Product"}
+          <button type="submit" disabled={loading} className="w-full py-4 bg-slate-950 hover:bg-blue-600 text-white rounded-2xl font-black uppercase italic tracking-widest text-xs transition-all active:scale-95 disabled:opacity-50">
+            {loading ? <Loader2 className="animate-spin mx-auto" size={18} /> : (initialData ? "Update Product" : "Save Product")}
           </button>
         </form>
       </div>

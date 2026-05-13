@@ -11,7 +11,6 @@ import { RentalFlow } from "@/components/features/RentalFlow";
 // Components
 import { Navbar } from "@/components/layouts/Navbar";
 import { Hero } from "@/components/features/Hero";
-import { CheckAvailability } from "@/components/features/CheckAvaibility";
 import { WhyChooseUs } from "@/components/features/WhyChooseUs";
 import { Footer } from "@/components/layouts/Footer";
 import { ItemCard } from "@/components/features/itemCard";
@@ -40,28 +39,7 @@ export default function LandingPage() {
     }
   }, [initialItems]);
 
-  const handleAvailabilityCheck = async (start: Date, end: Date) => {
-    setIsFilterLoading(true);
-    try {
-      const res = await api.get("/items/available", {
-        params: {
-          startDate: start.toISOString(),
-          endDate: end.toISOString(),
-        },
-      });
 
-      if (res.data.status === "success") {
-        setDisplayItems(res.data.data);
-        setIsFiltered(true);
-        toast.success("Stok berhasil diperbarui!");
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Gagal mengecek stok.");
-    } finally {
-      setIsFilterLoading(false);
-    }
-  };
 
   const filteredItems = selectedCatId
     ? displayItems.filter((item) => item.categoryId === selectedCatId)
@@ -99,10 +77,7 @@ export default function LandingPage() {
         )}
       </section>
 
-      {/* 2. Widget Cek Ketersediaan (PINDAH KE SINI: DI ATAS ITEMS) */}
-      <div className="mb-20">
-        <CheckAvailability onSearch={handleAvailabilityCheck} loading={isFilterLoading} />
-      </div>
+ 
 
       {/* 5. Filter Kategori (Warna Hitam -> Biru) */}
       <section className="container mx-auto px-6 mb-10">

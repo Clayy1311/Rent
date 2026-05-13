@@ -30,7 +30,7 @@ export function Footer() {
               </span>
             </div>
             <p className="text-slate-400 text-sm leading-relaxed">
-              Partner setia petualanganmu di Malang Raya. Kami menyediakan perlengkapan outdoor berkualitas untuk mahasiswa dan pendaki umum.
+              Partner setia petualanganmu di Tuban. Kami menyediakan perlengkapan outdoor berkualitas untuk mahasiswa dan pendaki umum.
             </p>
             {/* Social Icons diganti ke yang Aman & Fungsional */}
             <div className="flex gap-4">
@@ -81,7 +81,7 @@ export function Footer() {
               <li className="flex items-start gap-4">
                 <MapPin className="w-5 h-5 text-blue-500 shrink-0" />
                 <span className="text-slate-400 text-sm font-medium leading-relaxed">
-                  Lowokwaru, Kota Malang, Jawa Timur
+                  Maibit, Kabupaten Tuban, Jawa Timur
                 </span>
               </li>
               <li className="flex items-center gap-4">

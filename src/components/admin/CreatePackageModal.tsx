@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Plus, Trash2, Loader2, ChevronDown, Package as PackageIcon } from "lucide-react";
+import { X, Plus, Trash2, Loader2, ChevronDown } from "lucide-react";
 import api from "@/lib/axios";
 import { toast } from "sonner";
 
@@ -20,9 +20,10 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  initialData?: any;
 }
 
-export function CreatePackageModal({ isOpen, onClose, onSuccess }: Props) {
+export function CreatePackageModal({ isOpen, onClose, onSuccess, initialData }: Props) {
   const [loading, setLoading] = useState(false);
   const [availableItems, setAvailableItems] = useState<ItemOption[]>([]);
   
@@ -37,6 +38,37 @@ export function CreatePackageModal({ isOpen, onClose, onSuccess }: Props) {
   const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([
     { itemId: "", quantity: 1 }
   ]);
+
+  useEffect(() => {
+    if (isOpen && initialData) {
+      setFormData({
+        package_name: initialData.package_name || "",
+        description: initialData.description || "",
+        min_capacity: initialData.min_capacity?.toString() || "",
+        max_capacity: initialData.max_capacity?.toString() || "",
+        discount_price: initialData.discount_price?.toString() || "",
+      });
+      if (initialData.package_items && initialData.package_items.length > 0) {
+        setSelectedItems(
+          initialData.package_items.map((item: any) => ({
+            itemId: item.itemId?.toString() || "",
+            quantity: item.quantity || 1
+          }))
+        );
+      } else {
+        setSelectedItems([{ itemId: "", quantity: 1 }]);
+      }
+    } else if (isOpen && !initialData) {
+      setFormData({
+        package_name: "",
+        description: "",
+        min_capacity: "",
+        max_capacity: "",
+        discount_price: "",
+      });
+      setSelectedItems([{ itemId: "", quantity: 1 }]);
+    }
+  }, [isOpen, initialData]);
 
   useEffect(() => {
     if (isOpen) {
@@ -72,7 +104,6 @@ export function CreatePackageModal({ isOpen, onClose, onSuccess }: Props) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validasi sederhana
     if (selectedItems.some(item => !item.itemId)) {
       return toast.error("Pilih item dulu di setiap baris!");
     }
@@ -90,16 +121,19 @@ export function CreatePackageModal({ isOpen, onClose, onSuccess }: Props) {
         }))
       };
 
-      await api.post("/package/create", payload);
+      const isEdit = !!initialData;
+      if (isEdit) {
+        await api.put(`/package/${initialData.id}`, payload);
+        toast.success("Paket Bundling Berhasil Diupdate! 🚀");
+      } else {
+        await api.post("/package/create", payload);
+        toast.success("Paket Bundling Berhasil Dibuat! 🚀");
+      }
       
-      toast.success("Paket Bundling Berhasil Dibuat! 🚀");
       onSuccess();
       onClose();
-      // Reset
-      setFormData({ package_name: "", description: "", min_capacity: "", max_capacity: "", discount_price: "" });
-      setSelectedItems([{ itemId: "", quantity: 1 }]);
     } catch (err: any) {
-      toast.error(err.response?.data?.message || "Gagal membuat paket");
+      toast.error(err.response?.data?.message || "Gagal menyimpan paket");
     } finally {
       setLoading(false);
     }
@@ -109,10 +143,9 @@ export function CreatePackageModal({ isOpen, onClose, onSuccess }: Props) {
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/40 backdrop-blur-md animate-in fade-in duration-300">
       <div className="bg-white w-full max-w-lg rounded-[35px] overflow-hidden shadow-2xl animate-in zoom-in-95 border border-slate-100 flex flex-col max-h-[90vh]">
         
-        {/* Header */}
         <div className="px-6 py-5 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
           <h2 className="text-lg font-black uppercase italic tracking-tighter text-slate-950">
-            Create <span className="text-blue-600">Bundle Package</span>
+            {initialData ? "Edit" : "Create"} <span className="text-blue-600">Bundle Package</span>
           </h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-900"><X size={20} /></button>
         </div>
@@ -120,7 +153,6 @@ export function CreatePackageModal({ isOpen, onClose, onSuccess }: Props) {
         <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto custom-scrollbar">
           
           <div className="space-y-3">
-            {/* Package Name */}
             <div className="space-y-1">
               <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 px-1">Package Name</label>
               <input 
@@ -132,7 +164,6 @@ export function CreatePackageModal({ isOpen, onClose, onSuccess }: Props) {
               />
             </div>
 
-            {/* Capacity & Discount Row */}
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1">
                 <label className="text-[8px] font-black uppercase tracking-widest text-slate-400 px-1">Min Cap</label>
@@ -147,9 +178,13 @@ export function CreatePackageModal({ isOpen, onClose, onSuccess }: Props) {
                 <input required type="number" className="w-full px-4 py-3 bg-slate-50 rounded-xl font-bold text-sm outline-none text-emerald-600" placeholder="10000" value={formData.discount_price} onChange={(e) => setFormData({...formData, discount_price: e.target.value})}/>
               </div>
             </div>
+
+            <div className="space-y-1">
+              <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 px-1">Description</label>
+              <textarea required rows={2} className="w-full px-4 py-3 bg-slate-50 rounded-xl font-bold text-sm outline-none resize-none" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})}/>
+            </div>
           </div>
 
-          {/* ITEM SELECTION AREA */}
           <div className="space-y-3 border-t border-slate-50 pt-4">
             <div className="flex justify-between items-center px-1">
               <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Included Items</label>
@@ -192,9 +227,9 @@ export function CreatePackageModal({ isOpen, onClose, onSuccess }: Props) {
                     <button 
                       type="button"
                       onClick={() => removeRowItem(index)}
-                      className="p-3 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                      className="p-3 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-xl transition-all"
                     >
-                      <Trash2 size={16} />
+                      <Trash2 size={14} />
                     </button>
                   )}
                 </div>
@@ -202,17 +237,8 @@ export function CreatePackageModal({ isOpen, onClose, onSuccess }: Props) {
             </div>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 px-1">Description</label>
-            <textarea required rows={2} className="w-full px-4 py-3 bg-slate-50 rounded-xl font-bold text-sm outline-none resize-none" placeholder="Detail paket..." value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})}/>
-          </div>
-
-          <button 
-            type="submit"
-            disabled={loading}
-            className="w-full py-4 bg-slate-950 hover:bg-blue-600 text-white rounded-2xl font-black uppercase italic tracking-widest text-xs transition-all active:scale-95 disabled:opacity-50 shadow-xl shadow-slate-200"
-          >
-            {loading ? <Loader2 className="animate-spin mx-auto" size={18} /> : "Create Package"}
+          <button type="submit" disabled={loading} className="w-full py-4 bg-slate-950 hover:bg-blue-600 text-white rounded-2xl font-black uppercase italic tracking-widest text-xs transition-all active:scale-95 disabled:opacity-50">
+            {loading ? <Loader2 className="animate-spin mx-auto" size={18} /> : (initialData ? "Update Package" : "Save Package")}
           </button>
         </form>
       </div>

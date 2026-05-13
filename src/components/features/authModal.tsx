@@ -77,7 +77,8 @@ setTimeout(() => {
   };
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[400px] bg-slate-950 border-slate-800 text-white shadow-2xl">
+      
+      <DialogContent className="z-[100] sm:max-w-[400px] bg-slate-950 border-slate-800 text-white shadow-2xl">
         <DialogHeader className="items-center pb-4">
           <div className="p-3 bg-primary/10 rounded-2xl mb-2">
             <Mountain className="h-8 w-8 text-primary" />
