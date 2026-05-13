@@ -9,6 +9,13 @@ export const getAllCategory = async() => {
         }
     })
 }
+export const DeleteCategory = async(id: number) => {
+    return await prisma.category.delete({
+        where: {
+            id: id
+        }
+    })
+}
 
 export const CreateCategory = async(name: string) => {
 

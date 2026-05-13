@@ -117,7 +117,7 @@ model BookingItem {
   price     Int      // Harga saat dibooking (fixed price)
 
   booking   Booking  @relation(fields: [bookingId], references: [id])
-  item      Item     @relation(fields: [itemId], references: [id])
+  item      Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
   package   Package? @relation(fields: [packageId], references: [id])
 }
 

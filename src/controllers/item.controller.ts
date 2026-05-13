@@ -1,6 +1,7 @@
 import { Request, Response } from "express"
 
 import * as itemService from "../services/item.service"
+import { stat } from "node:fs"
 
 export const getItems = async (req: Request, res: Response) => {
 
@@ -21,6 +22,20 @@ export const getItems = async (req: Request, res: Response) => {
 
   }
 
+}
+
+export const deleteItems = async(req: Request, res: Response) =>{
+  try{
+    const itemId = Number(req.params.id);
+    await itemService.deleteItem(itemId);
+
+    res.status(200).json({
+      status: "success",
+      "message": "succes delete data "
+    });
+  } catch(error: any){
+    res.status(400).json({status: "error", message: error.message});
+  }
 }
 
 export const getItemById = async (req: Request, res: Response) => {
@@ -80,36 +95,47 @@ export const createItem = async (req: Request, res: Response) => {
     });
   }
 };
-
 export const updateItem = async (req: Request, res: Response) => {
-
   try {
+    const id = Number(req.params.id);
+    
+    // 1. Cek dulu apakah body-nya ada
+    if (!req.body) {
+      return res.status(400).json({ message: "Body request kosong" });
+    }
 
-    const id = Number(req.params.id)
+    // 2. Ambil gambar kalau ada, kalau nggak ada biarin null
+    const image = req.file ? req.file.filename : undefined;
 
-    const { name, description, price, stock } = req.body
+    const { name, description, price, stock } = req.body;
 
-    const item = await itemService.updateItem(id, {
+    // 3. Validasi: Jangan kirim NaN ke Prisma!
+    const updateData: any = {
       name,
       description,
-      price: Number(price),
-      stock: Number(stock)
-    })
+    };
+
+    // Cuma masukkan ke object kalau angkanya valid
+    if (price !== undefined) updateData.price = Number(price);
+    if (stock !== undefined) updateData.stock = Number(stock);
+    if (image) updateData.image = image;
+
+    // 4. Kirim ke service
+    const item = await itemService.updateItem(id, updateData);
 
     res.json({
       message: "Item updated",
       data: item
-    })
+    });
 
-  } catch (error) {
-
+  } catch (error: any) {
+    console.error("DETAIL ERRORNYA NIH:", error);
+    // Tampilkan error asli biar lu gak nebak-nebak
     res.status(500).json({
-      message: "Server error"
-    })
-
+      message: error.message || "Server error"
+    });
   }
-
-}
+};
 
 export const deleteItem = async (req: Request, res: Response) => {
 
@@ -123,13 +149,13 @@ export const deleteItem = async (req: Request, res: Response) => {
       message: "Item deleted"
     })
 
-  } catch (error) {
-
-    res.status(500).json({
-      message: "Server error"
-    })
-
-  }
+  } catch (error: any) {
+  console.log(error); // LIHAT DI TERMINAL VS CODE KAMU!
+  res.status(500).json({ 
+    status: "error", 
+    message: error.message // Ini bakal nampilin error aslinya (misal: constraint error)
+  }); 
+}
 
 }
 

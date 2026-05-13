@@ -33,3 +33,22 @@ export const CreateCategory = async(req: Request, res: Response) => {
         })
      }
 }
+
+export const DeleteCategory = async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+
+    const category = await CategoryServices.DeleteCategory(id);
+
+    res.json({
+      message: "success delete data category",
+      data: category
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      message: "server error",
+      error
+    });
+  }
+};

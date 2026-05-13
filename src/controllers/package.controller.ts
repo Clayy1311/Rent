@@ -74,6 +74,28 @@ export const createPackage = async (data: {
     });
   });
 };
+
+export const updatepackage  = async(req: Request, res: Response) => {
+ try{
+  const packageID = Number(req.params.id);
+  const {package_name, description, min_capacity, max_capacity,discount_price, items} = req.body;
+  if (!items || items.length === 0) {
+      return res.status(400).json({ status: "error", message: "Isi paket (items) tidak boleh kosong" });
+    }
+    const itempackage = await packageService.updatepackage(packageID,{
+       package_name,
+      description,
+      min_capacity: Number(min_capacity),
+      max_capacity: Number(max_capacity),
+      discount_price: Number(discount_price),
+      items
+    })
+    return res.status(200).json({"message": "berhasil update data", data: itempackage});
+  
+ } catch(error: any){
+  res.status(400).json({status: "error", "message": error.message});
+ }
+}
 export const createNewPackage = async (req: Request, res: Response) => {
   try {
     const { package_name, description, min_capacity, max_capacity, discount_price, items } = req.body;
@@ -133,3 +155,15 @@ export const getDetailPackage = async (req: Request, res: Response) => {
     res.status(500).json({ status: "error", message: error.message });
   }
 };
+
+export const deletepackage = async(req: Request, res: Response) => {
+  try{
+    const id = Number(req.params.id);
+     await packageService.deletepackage(id);
+    return res.status(200).json({
+      "message": "success delete data",
+    })
+  }  catch(error: any){
+  res.status(400).json({status: "error", message: error.message} );
+  }
+}

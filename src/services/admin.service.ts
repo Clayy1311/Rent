@@ -2,36 +2,72 @@ import prisma from "../config/prisma";
 import { BookingStatus } from "@prisma/client";
 
 
+// SERVICE PICKUP: Mengubah status dari CONFIRMED ke RENTED
+export const confirmPickUp = async (bookingId: number) => {
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId }
+  });
+
+  if (!booking) throw new Error("Booking tidak ditemukan");
+  
+  // Validasi: Hanya bisa pickup jika sudah dibayar/dikonfirmasi admin
+  if (booking.status !== BookingStatus.CONFIRMED) {
+    throw new Error("Barang belum bisa diambil karena status belum CONFIRMED");
+  }
+
+  return await prisma.booking.update({
+    where: { id: bookingId },
+    data: {
+      status: BookingStatus.RENTED,
+      // Kamu bisa mencatat waktu pengambilan asli jika ada fieldnya
+      // actualPickUpDate: new Date() 
+    }
+  });
+};
+
+// SERVICE RETURN: Menghitung denda otomatis dan menyelesaikan transaksi
 export const processReturn = async (bookingId: number, adminNote: string) => {
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId }
   });
 
   if (!booking) throw new Error("Booking tidak ditemukan");
+  
+  // Pastikan status dicek dengan benar
   if (booking.status !== BookingStatus.RENTED) {
     throw new Error("Hanya barang dengan status RENTED yang bisa dikembalikan");
   }
 
   const now = new Date();
+  
+  // --- LOGIKA BATAS AKHIR HARI ---
+  // Kita paksa jam di endDate jadi 23:59:59 hari itu.
+  const deadline = new Date(booking.endDate);
+  deadline.setHours(23, 59, 59, 999); 
+
   let penalty = 0;
 
-  // Hitung Denda (Rp 5.000 per jam jika lewat dari endDate)
-  if (now > booking.endDate) {
-    const diffInMs = now.getTime() - booking.endDate.getTime();
+  // Sekarang denda cuma dihitung kalau 'now' sudah lewat dari jam 23:59 malam
+  if (now.getTime() > deadline.getTime()) {
+    const diffInMs = now.getTime() - deadline.getTime();
+    
+    // Hitung denda per jam (dihitung mulai dari lewat tengah malam)
     const diffInHours = Math.ceil(diffInMs / (1000 * 60 * 60));
-    penalty = diffInHours * 5000;
+    penalty = diffInHours * 5000; 
   }
 
-  // Langsung update di tabel yang sama
-  return await prisma.booking.update({
+  // Update dan kembalikan hasil terbarunya
+  const updatedBooking = await prisma.booking.update({
     where: { id: bookingId },
     data: {
-      status: BookingStatus.COMPLETED,
+      status: BookingStatus.FINISHED, // Pastikan ini sesuai enum di Prisma lu
       actualReturnDate: now,
       penaltyAmount: penalty,
       adminNote: adminNote || "Barang kembali lengkap"
     }
   });
+
+  return updatedBooking;
 };
 
 export const getDashboardStats = async () => {

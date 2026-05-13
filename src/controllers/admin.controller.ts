@@ -2,29 +2,40 @@ import { Request, Response } from "express";
 import ExcelJS from 'exceljs';
 import * as adminService from "../services/admin.service";
 
+// Controller untuk Handle Pengambilan Barang
+export const handlePickUp = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const result = await adminService.confirmPickUp(Number(id));
+
+    res.status(200).json({
+      status: "success",
+      message: "Status berhasil diubah ke RENTED. Barang resmi dipinjam.",
+      data: result
+    });
+  } catch (error: any) {
+    res.status(400).json({ status: "error", message: error.message });
+  }
+};
+
+// Controller untuk Handle Pengembalian Barang
 export const handleReturn = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { adminNote } = req.body;
- 
+    const { adminNote } = req.body || {};
+
     const result = await adminService.processReturn(Number(id), adminNote);
 
     res.status(200).json({
       status: "success",
-      message: "Proses pengembalian berhasil",
+      message: "Pengembalian berhasil diproses",
       data: {
-        bookingCode: result.bookingCode,
-        status: result.status,
-        penalty: result.penaltyAmount,
-        returnDate: result.actualReturnDate,
-        note: result.adminNote
+        booking: result,
+        autoPenalty: result.penaltyAmount // Menampilkan denda yang terhitung
       }
     });
   } catch (error: any) {
-    res.status(400).json({ 
-      status: "error", 
-      message: error.message 
-    });
+    res.status(400).json({ status: "error", message: error.message });
   }
 };
 

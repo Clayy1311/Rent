@@ -1,3 +1,4 @@
+import { error } from "node:console"
 import prisma from "../config/prisma"
 import { BookingStatus } from "@prisma/client"
 
@@ -42,6 +43,7 @@ export const updateItem = async (
     description?: string
     price?: number
     stock?: number
+    image?: string
   }
 ) => {
 
@@ -54,8 +56,19 @@ export const updateItem = async (
 
 export const deleteItem = async (id: number) => {
 
+  const activeBookings = await prisma.bookingItem.findFirst({
+    where: {
+      itemId: id,
+      booking: {
+        status: {in: ["CONFIRMED", "RENTED"]}
+      }
+    }
+  })
+  if (activeBookings){
+    throw new error("Barang tidak bisa dihapus karena sedang dalam proses penyewaan aktif");
+  }
   return await prisma.item.delete({
-    where: { id }
+    where: {id},
   })
 
 }
@@ -67,48 +80,62 @@ export const getAvailableItemsService = async (params: {
 }) => {
   const { startDate, endDate, categoryId } = params;
 
+  // Konversi input ke objek Date untuk perbandingan Prisma
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
   const items = await prisma.item.findMany({
-    where: categoryId ? { categoryId: Number(categoryId) } : {},
+    where: {
+      // Filter kategori jika user memilih kategori tertentu
+      ...(categoryId ? { categoryId: Number(categoryId) } : {}),
+    },
     include: {
       category: true,
-      // Ambil bookingItems yang tanggal sewanya bertabrakan dengan input user
+      // Ambil data transaksi yang statusnya aktif & tanggalnya tabrakan
       bookingItems: {
         where: {
           booking: {
-            // Kita hitung semua yang sudah dikonfirmasi, sedang disewa, atau selesai
-            // Kecuali yang CANCELLED atau WAITING_CONFIRMATION (opsional)
-            status: { 
-              in: [BookingStatus.CONFIRMED, BookingStatus.RENTED] 
+            status: {
+              in: [
+                BookingStatus.CONFIRMED,
+                BookingStatus.RENTED,
+                BookingStatus.PENDING_PAYMENT,
+                BookingStatus.WAITING_CONFIRMATION,
+              ],
             },
-            // Logika Tabrakan Tanggal (Overlap)
+            // Logika Overlap: Mengecek apakah jadwal sewa di DB bertabrakan dengan input user
             AND: [
-              { startDate: { lt: new Date(endDate) } },
-              { endDate: { gt: new Date(startDate) } }
-            ]
-          }
-        }
-      }
-    }
+              { startDate: { lt: end } }, // Sewa di DB dimulai sebelum sewa baru berakhir
+              { endDate: { gt: start } }, // Sewa di DB berakhir setelah sewa baru dimulai
+            ],
+          },
+        },
+      },
+    },
   });
 
-  // Kalkulasi stok real-time
-  const availableItems = items.map(item => {
-    // Hitung total quantity yang sudah terpakai
-    const rentedQty = item.bookingItems.reduce((acc, curr) => acc + curr.quantity, 0);
-    const currentStock = item.stock - rentedQty;
+  // Kalkulasi stok per item
+  const availableItems = items.map((item) => {
+    // Hitung total unit yang sudah "dipesan" (occupied) di range tanggal tersebut
+    const occupiedQty = item.bookingItems.reduce(
+      (acc, curr) => acc + curr.quantity,
+      0
+    );
+
+    // Sisa stok = Stok total di database - jumlah yang sudah terpakai
+    const currentStock = item.stock - occupiedQty;
 
     return {
       id: item.id,
       name: item.name,
       price: item.price,
       image: item.image,
-      stock: item.stock, // Stok total di gudang
-      availableStock: currentStock > 0 ? currentStock : 0, // Sisa stok siap sewa
-      category: item.category?.name
+      totalStock: item.stock, // Stok asli di gudang
+      availableStock: Math.max(0, currentStock), // Jika hasil negatif, paksa ke 0
+      category: item.category?.name,
     };
   });
 
-  // Kamu bisa memilih: mau kirim semua atau yang tersedia saja?
-  // Biasanya kirim semua tapi yang stok 0 diberi keterangan "Habis" di Frontend
+  // Return semua item (termasuk yang stoknya 0 agar frontend bisa nampilin status "Habis")
   return availableItems;
 };

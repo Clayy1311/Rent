@@ -1,5 +1,7 @@
 import prisma from "../config/prisma";
 import { BookingStatus } from "@prisma/client";
+import { Booking } from "@prisma/client";
+import { error } from "node:console";
 
 // Fungsi untuk mengambil semua paket dengan perhitungan harga coret
 export const getAllPackages = async () => {
@@ -190,3 +192,63 @@ export const createPackage = async (data: {
       }
     });
   };
+
+  export const deletepackage = async(id: number) => {
+    const activeBookings = await prisma.bookingItem.findFirst({
+    where: {
+      itemId: id,
+      booking: {
+        status: {in: ["CONFIRMED", "RENTED"]}
+      }
+    }
+  })
+
+  if(activeBookings){
+    throw new error("tidak bisa menghapus package karena ada item yang masih di sewa")
+
+  }
+  return await prisma.package.delete({
+    where: {id},
+  })
+  }
+export const updatepackage = async (
+  id: number,
+  data: {
+    package_name: string;
+    description?: string;
+    min_capacity: number;
+    max_capacity: number;
+    discount_price: number;
+    items: { itemId: number; quantity: number }[];
+  }
+) => {
+  return await prisma.package.update({
+    where: { id },
+    data: {
+      package_name: data.package_name,
+      description: data.description,
+      min_capacity: Number(data.min_capacity),
+      max_capacity: Number(data.max_capacity),
+      discount_price: Number(data.discount_price),
+      
+      package_items: {
+        // 1. Hapus semua item lama di paket ini
+        deleteMany: {}, 
+        // 2. Buat ulang dengan koneksi yang bener ke Item
+        create: data.items.map((it) => ({
+          quantity: Number(it.quantity),
+          item: {
+            connect: { id: Number(it.itemId) } // PAKAI CONNECT DISINI
+          }
+        })),
+      },
+    },
+    include: {
+      package_items: {
+        include: {
+          item: true // Biar balikan datanya lengkap sama info barangnya
+        }
+      },
+    },
+  });
+};
