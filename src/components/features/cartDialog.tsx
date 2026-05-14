@@ -51,6 +51,7 @@ export function CartDialog() {
     removePackage,
   } = useCartStore();
   const { token } = useAuthStore();
+  const [open, setOpen] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [date, setDate] = useState<DateRange | undefined>({
@@ -76,57 +77,104 @@ export function CartDialog() {
         );
 
   const handleBooking = async () => {
-    if (!token) return toast.error("Silakan login terlebih dahulu!");
-    if (!date?.from || !date?.to) return toast.error("Pilih tanggal sewa!");
+    if (!token) {
+      return toast.error("Silakan login terlebih dahulu!");
+    }
+
+    if (!date?.from || !date?.to) {
+      return toast.error("Pilih tanggal sewa!");
+    }
 
     const isCartEmpty = cart.length === 0 && packages.length === 0;
-    if (isCartEmpty) return toast.error("Keranjang kosong!");
+
+    if (isCartEmpty) {
+      return toast.error("Keranjang kosong!");
+    }
 
     setLoading(true);
 
     try {
       let response;
 
+      // =========================
+      // BOOKING PACKAGE
+      // =========================
       if (packages.length > 0) {
-        // --- FLOW BOOKING PAKET ---
         const payload = {
           packageId: Number(packages[0].id),
           startDate: format(date.from, "yyyy-MM-dd"),
           endDate: format(date.to, "yyyy-MM-dd"),
-          quantity: 1, // Paket biasanya 1 set
+
         };
+
         response = await api.post("/package/checkout", payload);
-      } else {
-        // --- FLOW BOOKING SATUAN (Sequential/Parallel) ---
-        // Sesuai kode awalmu yang melakukan hit per item
-        const requests = cart.map((item) => {
-          return api.post("/bookings", {
+      }
+
+      // =========================
+      // BOOKING ITEM
+      // =========================
+      else {
+         response = await api.post("/bookings", {
+          items: cart.map((item) => ({
             itemId: Number(item.id),
-            startDate: format(date.from!, "yyyy-MM-dd"),
-            endDate: format(date.to!, "yyyy-MM-dd"),
             quantity: Number(item.quantity),
-          });
+          })),
+
+          startDate: format(date.from!, "yyyy-MM-dd"),
+          endDate: format(date.to!, "yyyy-MM-dd"),
         });
-
-        const responses = await Promise.all(requests);
-        response = responses[0]; // Ambil response pertama untuk ID payment
       }
 
-      const bookingId = response?.data?.data?.id || response?.data?.id;
+      // =========================
+      // AMBIL TOKEN MIDTRANS
+      // =========================
+      const tokenMidtrans = response?.data?.data?.token;
 
-      toast.success("Booking Berhasil!", {
-        description: "Mengarahkan ke halaman pembayaran...",
+      if (!tokenMidtrans) {
+        throw new Error("Token Midtrans tidak ditemukan");
+      }
+
+      // =========================
+      // OPEN MIDTRANS POPUP
+      // =========================
+      setOpen(false);
+      console.log(window.snap)
+      window.snap.pay(tokenMidtrans, {
+        onSuccess: function (result: any) {
+          toast.success("Pembayaran berhasil!", {
+            description: "Pesanan kamu berhasil dibayar.",
+          });
+
+          clearCart();
+
+          router.push("/history");
+        },
+
+        onPending: function (result: any) {
+          toast.info("Menunggu pembayaran", {
+            description: "Silakan selesaikan pembayaran kamu.",
+          });
+
+          clearCart();
+
+          router.push("/history");
+        },
+
+        onError: function (result: any) {
+          toast.error("Pembayaran gagal", {
+            description: "Terjadi kesalahan saat pembayaran.",
+          });
+        },
+
+        onClose: function () {
+          toast.warning("Popup pembayaran ditutup");
+        },
       });
-
-      clearCart();
-
-      if (bookingId) {
-        router.push(`/payment/${bookingId}`);
-      } else {
-        router.push("/history");
-      }
     } catch (err: any) {
+      console.log(err);
+
       const backendMessage = err.response?.data?.message;
+
       toast.error("Gagal Booking", {
         description: backendMessage || "Terjadi kesalahan pada server.",
         duration: 5000,
@@ -137,7 +185,7 @@ export function CartDialog() {
   };
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button
           variant="outline"
