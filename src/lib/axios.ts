@@ -28,7 +28,7 @@ api.interceptors.response.use(
       logout(); // Bersihkan token dan data user di Zustand/LocalStorage
       
       // Redirect ke login
-      window.location.href = "/login";
+      window.location.href = "/";
     }
     return Promise.reject(error);
   }

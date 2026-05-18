@@ -19,7 +19,6 @@ export function Sidebar() {
   const menuItems = [
     { name: "Dashboard", href: "/admin", icon: <LayoutDashboard size={20} /> },
     { name: "Semua Pesanan", href: "/admin/allBooking", icon: <LayoutDashboard size={20} /> },
-    { name: "Pesanan", href: "/admin/bookings", icon: <ShoppingCart size={20} /> },
     { name: "Produk & Paket", href: "/admin/products", icon: <Package size={20} /> },
      { name: "Kategori", href: "/admin/category", icon: <Package size={20} /> },
        { name: "PickUp & Return", href: "/admin/pickupreturn", icon: <Package size={20} /> },

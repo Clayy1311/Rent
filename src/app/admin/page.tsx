@@ -1,45 +1,40 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import api from "@/lib/axios";
-import { DashboardStats } from "@/components/admin/DashboardTats";
-import { TopItemsList } from "@/components/admin/TopItemList";
-import { RecentBookingsTable } from "@/components/admin/RecentBookingsTable";
+import RevenuePage from "@/components/admin/dashboard/RevenueChart";
+import RentPage from "@/components/admin/dashboard/RentChart";
+import StatusPage from "@/components/admin/dashboard/StatusChart";
+import SellingChartPage from "@/components/admin/dashboard/SellingChart";
+import CardchartPage from "@/components/admin/dashboard/Card";
 
 export default function AdminDashboard() {
-  const [data, setData] = useState<any>(null);
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const res = await api.get("/admin/stats"); // Sesuaikan endpoint-mu
-        setData(res.data.data);
-      } catch (err) {
-        console.error("Gagal load stats");
-      }
-    };
-    fetchStats();
-  }, []);
-
-  if (!data) return <div className="p-8 text-slate-500">Loading Dashboard...</div>;
-
   return (
-    <div className="space-y-8">
+    <div className="p-6 bg-slate-50 min-h-screen space-y-8">
+
+      {/* HEADER */}
       <div>
-        <h1 className="text-2xl font-black text-slate-900">DASHBOARD OVERVIEW</h1>
-        <p className="text-slate-500">Pantau performa Azka Outdoor hari ini.</p>
+        <h1 className="text-3xl font-bold text-slate-900">
+          Dashboard Overview
+        </h1>
+        <p className="text-slate-500 mt-1">
+          Pantau performa Azka Outdoor hari ini.
+        </p>
       </div>
 
-      <DashboardStats summary={data.summary} />
+      {/* 🔥 KPI CARDS */}
+      <CardchartPage />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
-          <RecentBookingsTable bookings={data.recentBookings} />
-        </div>
-        <div>
-          <TopItemsList items={data.topItems} />
-        </div>
+      {/* 📈 CHART ROW 1 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <RevenuePage />
+        <RentPage />
       </div>
+
+      {/* 📊 CHART ROW 2 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <StatusPage />
+        <SellingChartPage />
+      </div>
+
     </div>
   );
 }

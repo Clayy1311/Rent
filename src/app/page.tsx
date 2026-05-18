@@ -19,6 +19,7 @@ import { AuthModal } from "@/components/features/authModal";
 import { Button } from "@/components/ui/button";
 import { Loader2, Sparkles } from "lucide-react";
 import { FaqSection } from "@/components/features/FaqSection";
+
 import { toast } from "sonner";
 
 export default function LandingPage() {
