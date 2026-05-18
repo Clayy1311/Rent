@@ -3,47 +3,67 @@ import * as bookingService from "../services/booking.service"
 import { AuthRequest } from "../middleware/auth.middleware"
 import PDFDocument from "pdfkit";
 import prisma from "../config/prisma";
+import { snap } from "../config/midtrans";
 
-export const createBooking = async (req: Request, res: Response) => {
+export const createBooking = async (
+  req: Request,
+  res: Response
+) => {
+
   try {
-    // 1. Ambil data dari body
-    const { itemId, startDate, endDate, quantity } = req.body;
 
-    // 2. Ambil userId (Biasanya dari req.user jika pakai middleware Auth)
-    // Jika belum ada middleware, sementara bisa pakai dari body atau hardcode
-    const userId = (req as any).user?.id || req.body.userId;
+    const {
+      items,
+      startDate,
+      endDate
+    } = req.body;
 
-    // 3. Validasi input sederhana
-    if (!itemId || !startDate || !endDate || !quantity) {
+    const userId =
+      (req as any).user?.id ||
+      req.body.userId;
+
+    if (
+      !items ||
+      !Array.isArray(items) ||
+      items.length === 0 ||
+      !startDate ||
+      !endDate
+    ) {
+
       return res.status(400).json({
         success: false,
-        message: "Data booking tidak lengkap (itemId, dates, dan quantity wajib ada)."
+        message:
+          "Data booking tidak lengkap."
       });
+
     }
 
-    // 4. Panggil service (Di sini logika overlap akan berjalan)
-    const newBooking = await bookingService.createBooking(Number(userId), {
-      itemId: Number(itemId),
-      startDate,
-      endDate,
-      quantity: Number(quantity)
-    });
+    const newBooking =
+      await bookingService.createBooking(
+        Number(userId),
+        {
+          items,
+          startDate,
+          endDate
+        }
+      );
 
-    // 5. Response Sukses
     return res.status(201).json({
       success: true,
-      message: "Booking berhasil dibuat, silakan lakukan pembayaran.",
+      message:
+        "Booking berhasil dibuat, silakan lakukan pembayaran.",
       data: newBooking
     });
 
   } catch (error: any) {
-    // Jika error berasal dari lemparan "throw new Error" di service (seperti stok habis)
-    // maka akan ditangkap di sini.
+
     return res.status(400).json({
       success: false,
       message: error.message
     });
+
   }
+
 };
 
 export const mybookings = async(req: AuthRequest, res: Response) => {

@@ -159,28 +159,26 @@ export const deleteItem = async (req: Request, res: Response) => {
 
 }
 
-export const getAvailableItems = async (req: Request, res: Response) => {
-  try {
-    const { startDate, endDate, categoryId } = req.query;
+export const getavailability = async(req: Request, res: Response) => {
+try {
+  const {startDate, endDate} = req.query;
+  const availability = await itemService.getAvailabilityService (
+    String(startDate),
+    String(endDate)
+  )
 
-    if (!startDate || !endDate) {
-      return res.status(400).json({ 
-        status: "error", 
-        message: "Tanggal mulai dan selesai harus diisi" 
-      });
-    }
-
-    const items = await itemService.getAvailableItemsService({
-      startDate: startDate as string,
-      endDate: endDate as string,
-      categoryId: categoryId ? Number(categoryId) : undefined
+  return res.status(200).json({
+    "success" :"true",
+    data: availability
+  })
+} catch(error: any)
+{
+  
+    return res.status(500).json({
+      success: false,
+      message: error.message
     });
 
-    res.status(200).json({
-      status: "success",
-      data: items
-    });
-  } catch (error: any) {
-    res.status(500).json({ status: "error", message: error.message });
   }
+
 };

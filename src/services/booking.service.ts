@@ -1,5 +1,6 @@
 import prisma from "../config/prisma"
 import { BookingStatus } from "@prisma/client"
+import { snap } from "../config/midtrans"
 interface BookingItemInput {
   itemId: number
   quantity: number
@@ -14,144 +15,218 @@ interface CreateBookingInput {
 
 
 
-export const createBooking = async (userId: number, data: {
-  itemId: number;
-  startDate: string;
-  endDate: string;
-  quantity: number;
-}) => {
+export const createBooking = async (
+  userId: number,
+  data: {
+    items: {
+      itemId: number;
+      quantity: number;
+    }[];
+    startDate: string;
+    endDate: string;
+  }
+) => {
+
   const start = new Date(data.startDate);
   const end = new Date(data.endDate);
 
-  // 1. Ambil data Item (Cek stok total & harga)
-  const item = await prisma.item.findUnique({
-    where: { id: data.itemId }
-  });
+  let totalPrice = 0;
 
-  if (!item) throw new Error("Item tidak ditemukan");
+  const validatedItems: {
+    itemId: number;
+    quantity: number;
+    price: number;
+  }[] = [];
 
-  // 2. LOGIKA OVERLAP DENGAN BUFFER TIME (H+1)
-  // Kita menghitung ketersediaan dengan menganggap setiap booking 
-  // memiliki "masa tenang" 1 hari setelah endDate.
-  const overlappingBookings = await prisma.bookingItem.aggregate({
-    _sum: { quantity: true },
-    where: {
-      itemId: data.itemId,
-      booking: {
-        status: {
-          in: [
-            BookingStatus.PENDING_PAYMENT,
-            BookingStatus.WAITING_CONFIRMATION,
-            BookingStatus.CONFIRMED,
-            BookingStatus.RENTED
-            // Tambahkan BookingStatus.OVERDUE jika ada di enum kamu
-          ]
-        },
-        // Logika Overlap Terkalibrasi:
-        // Mencari booking yang (Start <= End Baru) DAN (End + 1 Hari >= Start Baru)
-        AND: [
-          { startDate: { lte: end } },
-          { 
-            endDate: { 
-              // Buffer Time: start dikurangi 1 hari (24 jam)
-              // Artinya, booking lama yang berakhir kemarin masih dihitung overlap dengan hari ini
-              gte: new Date(start.getTime() - (24 * 60 * 60 * 1000)) 
-            } 
-          }
-        ]
+  for (const cartItem of data.items) {
+
+    const item = await prisma.item.findUnique({
+      where: {
+        id: cartItem.itemId
       }
+    });
+
+    if (!item) {
+      throw new Error("Item tidak ditemukan");
     }
-  });
 
-  // Ambil total item yang sedang dipesan (jika null, jadikan 0)
-  const bookedQuantity = overlappingBookings._sum.quantity || 0;
-  const availableStock = item.stock - bookedQuantity;
+    const overlappingBookings =
+      await prisma.bookingItem.aggregate({
 
-  // 3. VALIDASI STOK
-  if (data.quantity > availableStock) {
-    throw new Error(`Stok tidak mencukupi (termasuk waktu maintenance H+1). Tersedia: ${availableStock}, Anda meminta: ${data.quantity}`);
+        _sum: {
+          quantity: true
+        },
+
+        where: {
+          itemId: cartItem.itemId,
+
+          booking: {
+            status: {
+              in: [
+                BookingStatus.PENDING_PAYMENT,
+                BookingStatus.WAITING_CONFIRMATION,
+                BookingStatus.CONFIRMED,
+                BookingStatus.RENTED
+              ]
+            },
+
+            AND: [
+              {
+                startDate: {
+                  lte: end
+                }
+              },
+
+              {
+                endDate: {
+                  gte: new Date(
+                    start.getTime() -
+                    (24 * 60 * 60 * 1000)
+                  )
+                }
+              }
+            ]
+          }
+        }
+
+      });
+
+    const bookedQuantity =
+      overlappingBookings._sum.quantity || 0;
+
+    const availableStock =
+      item.stock - bookedQuantity;
+
+    if (cartItem.quantity > availableStock) {
+      throw new Error(
+        `Stok ${item.name} tidak mencukupi. Tersedia: ${availableStock}`
+      );
+    }
+
+    totalPrice +=
+      item.price * cartItem.quantity;
+
+    validatedItems.push({
+      itemId: item.id,
+      quantity: cartItem.quantity,
+      price: item.price
+    });
+
   }
 
-  // 4. JALANKAN TRANSACTION (Simpan ke DB)
-  const totalPrice = item.price * data.quantity;
-  const bookingCode = `INV-${Date.now()}-${userId}`;
+  const bookingCode =
+    `INV-${Date.now()}-${userId}`;
 
-  return await prisma.$transaction(async (tx) => {
-    // A. Buat Header Booking
-    const newBooking = await tx.booking.create({
-      data: {
-        userId,
-        bookingCode,
-        startDate: start,
-        endDate: end,
-        totalPrice,
-        status: BookingStatus.PENDING_PAYMENT,
-      // Set 15 menit dari sekarang
-    expiredAt: new Date(Date.now() + 15 * 60 * 1000),
+  const result =
+    await prisma.$transaction(async (tx) => {
+
+      const newBooking =
+        await tx.booking.create({
+
+          data: {
+            userId,
+            bookingCode,
+            startDate: start,
+            endDate: end,
+            totalPrice,
+
+            status:
+              BookingStatus.PENDING_PAYMENT,
+
+            expiredAt:
+              new Date(
+                Date.now() + 15 * 60 * 1000
+              ),
+          }
+
+        });
+
+      for (const item of validatedItems) {
+
+        await tx.bookingItem.create({
+
+          data: {
+            bookingId: newBooking.id,
+            itemId: item.itemId,
+            quantity: item.quantity,
+            price: item.price
+          }
+
+        });
+
       }
+
+      return newBooking;
+
     });
 
-    // B. Buat Detail Booking
-    await tx.bookingItem.create({
-      data: {
-        bookingId: newBooking.id,
-        itemId: data.itemId,
-        quantity: data.quantity,
-        price: item.price
-      }
+  const transaction =
+    await snap.createTransaction({ 
+
+      transaction_details: {
+        order_id: result.bookingCode!,
+        gross_amount: result.totalPrice
+      },
+        callbacks: {
+      finish: "http://localhost:3000/history"
+   }
+
     });
 
-    return newBooking;
-  });
+  return {
+    booking: result,
+    token: transaction.token
+  };
+
 };
-
 
 // ============================================
 // CANCEL BOOKING JIKA EXPIRED
 // ============================================
 
-export const cancelExpiredBookings = async () => {
+export const cancelExpiredBookings =
+async () => {
 
-  const expiredBookings = await prisma.booking.findMany({
-    where: {
-      status: "PENDING_PAYMENT",
-      expiredAt: {
-        lt: new Date()
+  const expiredBookings =
+    await prisma.booking.findMany({
+
+      where: {
+
+        status: "PENDING_PAYMENT",
+
+        expiredAt: {
+          lt: new Date()
+        }
+
       }
-    },
-    include: {
-      items: true
-    }
-  })
+
+    });
 
   if (expiredBookings.length === 0) {
-    return
+    return;
   }
 
-  console.log(`Found ${expiredBookings.length} expired bookings`)
+  console.log(
+    `Found ${expiredBookings.length} expired bookings`
+  );
 
   for (const booking of expiredBookings) {
 
-    for (const item of booking.items) {
-
-      await prisma.item.update({
-        where: { id: item.itemId },
-        data: {
-          stock: {
-            increment: item.quantity
-          }
-        }
-      })
-    }
-
     await prisma.booking.update({
-      where: { id: booking.id },
+
+      where: {
+        id: booking.id
+      },
+
       data: {
         status: BookingStatus.EXPIRED
       }
-    })
+
+    });
+
   }
-}
+
+};
 
 
 export const mybookings = async (userId: number) => {

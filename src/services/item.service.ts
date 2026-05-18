@@ -73,69 +73,87 @@ export const deleteItem = async (id: number) => {
 
 }
 
-export const getAvailableItemsService = async (params: {
-  startDate: string;
-  endDate: string;
-  categoryId?: number;
-}) => {
-  const { startDate, endDate, categoryId } = params;
+export const getAvailabilityService = async (
+  startDate: string,
+  endDate: string
+) => {
 
-  // Konversi input ke objek Date untuk perbandingan Prisma
   const start = new Date(startDate);
   const end = new Date(endDate);
 
-  const items = await prisma.item.findMany({
-    where: {
-      // Filter kategori jika user memilih kategori tertentu
-      ...(categoryId ? { categoryId: Number(categoryId) } : {}),
-    },
-    include: {
-      category: true,
-      // Ambil data transaksi yang statusnya aktif & tanggalnya tabrakan
-      bookingItems: {
-        where: {
-          booking: {
-            status: {
-              in: [
-                BookingStatus.CONFIRMED,
-                BookingStatus.RENTED,
-                BookingStatus.PENDING_PAYMENT,
-                BookingStatus.WAITING_CONFIRMATION,
-              ],
-            },
-            // Logika Overlap: Mengecek apakah jadwal sewa di DB bertabrakan dengan input user
-            AND: [
-              { startDate: { lt: end } }, // Sewa di DB dimulai sebelum sewa baru berakhir
-              { endDate: { gt: start } }, // Sewa di DB berakhir setelah sewa baru dimulai
-            ],
+  const items = await prisma.item.findMany();
+
+  const result = await Promise.all(
+
+    items.map(async (item) => {
+
+      const overlapping =
+        await prisma.bookingItem.aggregate({
+
+          _sum: {
+            quantity: true
           },
-        },
-      },
-    },
-  });
 
-  // Kalkulasi stok per item
-  const availableItems = items.map((item) => {
-    // Hitung total unit yang sudah "dipesan" (occupied) di range tanggal tersebut
-    const occupiedQty = item.bookingItems.reduce(
-      (acc, curr) => acc + curr.quantity,
-      0
-    );
+          where: {
 
-    // Sisa stok = Stok total di database - jumlah yang sudah terpakai
-    const currentStock = item.stock - occupiedQty;
+            itemId: item.id,
 
-    return {
-      id: item.id,
-      name: item.name,
-      price: item.price,
-      image: item.image,
-      totalStock: item.stock, // Stok asli di gudang
-      availableStock: Math.max(0, currentStock), // Jika hasil negatif, paksa ke 0
-      category: item.category?.name,
-    };
-  });
+            booking: {
 
-  // Return semua item (termasuk yang stoknya 0 agar frontend bisa nampilin status "Habis")
-  return availableItems;
+              status: {
+                in: [
+                  BookingStatus.PENDING_PAYMENT,
+                  BookingStatus.CONFIRMED,
+                  BookingStatus.RENTED
+                ]
+              },
+
+              AND: [
+                {
+                  startDate: {
+                    lte: end
+                  }
+                },
+
+                {
+                  endDate: {
+                    gte: new Date(
+                      start.getTime() -
+                      (24 * 60 * 60 * 1000)
+                    )
+                  }
+                }
+              ]
+
+            }
+
+          }
+
+        });
+
+      const booked =
+        overlapping._sum.quantity || 0;
+
+      const available =
+        item.stock - booked;
+
+      return {
+        id: item.id,
+        name: item.name,
+        stock: item.stock,
+        booked,
+        available,
+
+        status:
+          available <= 0
+            ? "FULL"
+            : "AVAILABLE"
+      };
+
+    })
+
+  );
+
+  return result;
+
 };

@@ -1,6 +1,38 @@
 import { Request, Response } from "express"
 import * as paymentService from "../services/payment.service"
 
+
+
+export const midtransWebhookController =
+  async (
+    req: Request,
+    res: Response
+  ) => {
+    console.log("WEBHOOK MASUK CONTROLLER");
+
+    try {
+
+      const result =
+        await paymentService.midtransWebhookService(req.body);
+
+      return res.status(200).json({
+        success: true,
+        message: "Webhook processed",
+        data: result
+      });
+
+    } catch (error: any) {
+
+      console.log(error);
+
+      return res.status(500).json({
+        success: false,
+        message: error.message
+      });
+
+    }
+
+};
 export const uploadPayment = async (
   req: Request,
   res: Response
