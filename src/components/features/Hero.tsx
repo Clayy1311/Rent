@@ -1,32 +1,72 @@
-import { ArrowRight, Briefcase } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function Hero() {
   return (
-    <section className="container mx-auto px-6  md:py-32 grid md:grid-cols-2 gap-16 items-center">
-      <div>
-        <h1 className="text-5xl md:text-7xl font-extrabold tracking-tighter text-slate-950 leading-[0.95] mb-6">
-          Peralatan lengkap,<br /> petualangan <span className="text-primary">sempurna.</span>
-        </h1>
-        <p className="text-lg text-slate-600 mb-12 max-w-md">
-          Sewa alat outdoor kualitas premium dengan proses cepat. Pilih alatmu, tentukan tanggal, dan berangkat!
-        </p>
-        
+    <section className="relative overflow-hidden bg-[#0f172a] text-white">
+      {/* Background image + overlay */}
+      <div className="absolute inset-0">
+        <img
+          src="/image/1.jpg"
+          alt="Mountain"
+          className="w-full h-full object-cover opacity-40"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-[#0f172a]" />
       </div>
 
-      <div className="relative h-[500px] w-full flex items-center justify-center">
-        <div className="absolute -inset-10 bg-gradient-to-tr from-primary/10 to-primary/30 rounded-full blur-3xl opacity-40" />
-        <div className="absolute left-10 top-0 bg-white p-5 rounded-2xl shadow-2xl w-56 transform rotate-[-2deg] border border-slate-50 z-20">
-          <div className="flex items-center gap-3 mb-3">
-            <Briefcase className="h-5 w-5 text-orange-600"/>
-            <span className="text-[10px] font-bold text-slate-400 uppercase">Mountain</span>
+      <div className="relative container mx-auto px-6 py-24 md:py-32 grid md:grid-cols-2 gap-12 items-center">
+        {/* LEFT */}
+        <div>
+          <p className="text-sm text-white/70 mb-4">
+            Rental alat outdoor • Tuban
+          </p>
+
+          <h1 className="text-4xl md:text-6xl font-semibold leading-tight mb-6">
+           Persewaan Alat Outdoor Terlengkap di Tuban
+            <br />
+           
+          </h1>
+
+          <p className="text-white/80 mb-8 max-w-md">
+            Sewa perlengkapan yang kamu butuhin, tanpa ribet. Semua sudah siap
+            pakai, tinggal berangkat.
+          </p>
+
+        <div className="inline-flex items-center gap-3 bg-emerald-500/90 text-white px-6 py-3 rounded-full text-sm font-medium">
+  <span>Perlengkapan lengkap & siap pakai</span>
+  <span className="opacity-70">•</span>
+  <span>Tanpa ribet</span>
+</div>
+
+          {/* small trust */}
+          <div className="flex items-center gap-6 mt-10 text-sm text-white/70">
+            <span>✔ Alat bersih & siap pakai</span>
+            <span>✔ Bisa ambil langsung</span>
           </div>
-          <img src="/image/2.jpg" alt="Gear" className="h-36 w-full object-contain mb-3" />
-          <h4 className="font-bold text-slate-900">Outdoor</h4>
         </div>
-        <div className="absolute right-0 top-20 bg-primary p-6 rounded-2xl shadow-2xl w-64 transform rotate-[6deg] z-30">
-          <img src="/image/1.jpg" alt="Tenda" className="h-44 w-auto mx-auto mb-4 object-contain" />
-          <h4 className="font-bold text-white text-xl">Mountain</h4>
+
+        {/* RIGHT */}
+        <div className="relative h-[420px] w-full">
+          {/* Image belakang */}
+          <div className="absolute top-0 right-0 w-[80%] h-[70%] rounded-3xl overflow-hidden shadow-xl">
+            <img
+              src="/image/1.jpg"
+              className="w-full h-full object-cover"
+              alt="mountain"
+            />
+          </div>
+
+          {/* Image depan */}
+          <div className="absolute bottom-0 left-0 w-[70%] h-[60%] rounded-3xl overflow-hidden shadow-2xl border-4 border-[#0f172a]">
+            <img
+              src="/image/2.jpg"
+              className="w-full h-full object-cover"
+              alt="camping"
+            />
+          </div>
+
+          {/* small badge */}
+         
         </div>
       </div>
     </section>

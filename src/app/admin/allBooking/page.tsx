@@ -84,39 +84,7 @@ export default function AdminAllBookingsPage() {
         </div>
 
         {/* CUSTOM REPORT DOWNLOADER */}
-        <div className="flex flex-wrap items-center gap-3 bg-white p-3 rounded-[30px] border border-slate-100 shadow-sm">
-          <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 rounded-2xl border border-slate-100">
-            <CalendarIcon size={14} className="text-blue-600" />
-            <input 
-              type="date" 
-              className="bg-transparent border-none text-[10px] font-black uppercase outline-none text-slate-900"
-              onChange={(e) => setDateRange({...dateRange, from: e.target.value})}
-            />
-            <span className="text-[10px] font-black text-slate-300 italic uppercase">to</span>
-            <input 
-              type="date" 
-              className="bg-transparent border-none text-[10px] font-black uppercase outline-none text-slate-900"
-              onChange={(e) => setDateRange({...dateRange, to: e.target.value})}
-            />
-          </div>
-          
-          <button 
-            onClick={handleDownload}
-            disabled={downloadLoading}
-            className="flex items-center gap-2 px-6 py-4 bg-slate-950 hover:bg-blue-600 text-white rounded-2xl transition-all font-black text-[10px] italic tracking-[0.15em] uppercase shadow-lg disabled:opacity-50 active:scale-95"
-          >
-            {downloadLoading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-            Download Report
-          </button>
-          
-          <button 
-            onClick={refresh}
-            className="p-4 bg-slate-100 hover:bg-slate-200 rounded-2xl transition-all text-slate-600 border border-slate-100"
-            title="Refresh Data"
-          >
-            <RefreshCcw size={18} className={loading ? "animate-spin" : ""} />
-          </button>
-        </div>
+        
       </div>
 
       {/* FILTER BAR */}

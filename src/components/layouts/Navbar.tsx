@@ -73,7 +73,7 @@ export function Navbar({ mounted, user, token, logout }: any) {
                 className="relative gap-2 rounded-full border-2 border-slate-200 px-6 h-11 bg-white text-slate-900 hover:bg-blue-600 hover:border-blue-600 hover:text-white transition-all duration-300 group shadow-sm"
               >
                 <ShoppingCart className="h-5 w-5 text-slate-600 group-hover:text-white transition-colors" />
-                <span className="text-sm font-bold uppercase tracking-tight">Keranjangssss</span>
+                <span className="text-sm font-bold uppercase tracking-tight"></span>
               </Button>
             )
           )}

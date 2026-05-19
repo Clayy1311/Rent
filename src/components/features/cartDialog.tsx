@@ -233,7 +233,7 @@ export function CartDialog() {
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-[450px] bg-slate-950 border-slate-800 text-slate-100 shadow-2xl">
+      <DialogContent className="sm:max-w-[450px] z-[100] bg-slate-950 border-slate-800 text-slate-100 shadow-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl font-bold text-white uppercase tracking-tighter">
             <ShoppingCart className="h-5 w-5 text-primary" /> Rincian Sewa
@@ -241,61 +241,70 @@ export function CartDialog() {
         </DialogHeader>
 
         {/* Pemilihan Tanggal */}
-        <div className="bg-slate-900/80 p-4 rounded-2xl border border-slate-800 my-2">
-          <label className="text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-2 block">
-            Pilih Durasi Petualangan
-          </label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant={"outline"}
-                className={cn(
-                  "w-full justify-start text-left font-medium bg-slate-950 border-slate-700 text-white hover:bg-slate-800 h-14 rounded-xl",
-                  !date && "text-muted-foreground",
-                )}
-              >
-                <CalendarIcon className="mr-3 h-5 w-5 text-primary" />
-                <div className="flex flex-col">
-                  {date?.from ? (
-                    date.to ? (
-                      <span className="text-sm">
-                        {format(date.from, "dd MMM", { locale: id })} -{" "}
-                        {format(date.to, "dd MMM yyyy", { locale: id })}
-                      </span>
-                    ) : (
-                      <span className="text-sm">
-                        {format(date.from, "dd MMM yyyy", { locale: id })}
-                      </span>
-                    )
-                  ) : (
-                    <span className="text-sm text-slate-500">
-                      Pilih tanggal
-                    </span>
-                  )}
-                  <span className="text-[10px] text-primary font-bold">
-                    {validDays} Malam Sewa
-                  </span>
-                </div>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              className="w-auto p-0 bg-slate-950 border-slate-800 shadow-2xl"
-              align="center"
-            >
-              <Calendar
-                initialFocus
-                mode="range"
-                defaultMonth={date?.from}
-                selected={date}
-                onSelect={setDate}
-                numberOfMonths={1}
-                disabled={(d) => d < startOfDay(new Date())}
-                className="rounded-md border-none text-white"
-                locale={id}
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
+       {/* Tanggal */}
+<div className="bg-slate-900/60 p-4 rounded-2xl border border-slate-800 space-y-3">
+  <p className="text-xs font-semibold text-slate-400">
+    Tanggal Sewa
+  </p>
+
+  <div className="grid grid-cols-2 gap-3">
+    
+    {/* START */}
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          className="h-12 justify-start bg-slate-900 border-slate-700 text-white"
+        >
+          <CalendarIcon className="mr-2 h-4 w-4 text-emerald-400" />
+          {date?.from
+            ? format(date.from, "dd MMM yyyy", { locale: id })
+            : "Mulai"}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto z-[9999] p-0 bg-slate-950 border-slate-800">
+        <Calendar
+          mode="single"
+          selected={date?.from}
+          onSelect={(d) => setDate((prev) => ({ ...prev, from: d }))}
+          disabled={(d) => d < startOfDay(new Date())}
+          locale={id}
+        />
+      </PopoverContent>
+    </Popover>
+
+    {/* END */}
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          className="h-12 justify-start bg-slate-950 border-slate-700 text-white"
+        >
+          <CalendarIcon className="mr-2 h-4 w-4 text-emerald-400" />
+          {date?.to
+            ? format(date.to, "dd MMM yyyy", { locale: id })
+            : "Selesai"}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto z-[999] p-0 bg-slate-950 border-slate-800">
+        <Calendar
+          mode="single"
+          selected={date?.to}
+          onSelect={(d) => setDate((prev) => ({ ...prev, to: d }))}
+          disabled={(d) =>
+            d < startOfDay(date?.from || new Date())
+          }
+          locale={id}
+        />
+      </PopoverContent>
+    </Popover>
+  </div>
+
+  {/* Info durasi */}
+  <p className="text-[11px] text-emerald-400 font-medium">
+    {validDays} hari sewa
+  </p>
+</div>
 
         {/* List Item / Package */}
         <ScrollArea className="max-h-[35vh] pr-4 px-1">
@@ -310,7 +319,7 @@ export function CartDialog() {
               {packages.map((pkg) => (
                 <div
                   key={pkg.id}
-                  className="flex gap-4 items-center bg-primary/10 p-3 rounded-2xl border border-primary/20"
+                  className="flex gap-4 items-center bg-emerald-500/10 border-emerald-500/20 p-3 rounded-2xl border"
                 >
                   <div className="h-10 w-10 bg-primary rounded-xl flex items-center justify-center">
                     <Box className="text-white h-6 w-6" />
@@ -343,7 +352,7 @@ export function CartDialog() {
               {cart.map((item) => (
                 <div
                   key={item.id}
-                  className="flex gap-4 items-center bg-white/5 p-3 rounded-2xl border border-white/5"
+                  className="flex gap-4 items-center bg-slate-800 p-3 rounded-2xl border border-slate-700"
                 >
                   <div className="flex-1 min-w-0">
                     <h4 className="font-bold text-xs text-white truncate">
@@ -412,7 +421,7 @@ export function CartDialog() {
               <Button
                 onClick={handleBooking}
                 disabled={loading}
-                className="w-full h-14 rounded-2xl text-md font-bold bg-primary hover:bg-primary/90 text-white shadow-xl transition-all"
+                className="w-full h-14 rounded-2xl text-md font-bold bg-emerald-500 hover:bg-emerald-600 hover:bg-primary/90 text-white shadow-xl transition-all"
               >
                 {loading ? (
                   <>

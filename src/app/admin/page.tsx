@@ -5,11 +5,11 @@ import RentPage from "@/components/admin/dashboard/RentChart";
 import StatusPage from "@/components/admin/dashboard/StatusChart";
 import SellingChartPage from "@/components/admin/dashboard/SellingChart";
 import CardchartPage from "@/components/admin/dashboard/Card";
+import TestApiPage from "@/components/admin/TestApi";
 
 export default function AdminDashboard() {
   return (
     <div className="p-6 bg-slate-50 min-h-screen space-y-8">
-
       {/* HEADER */}
       <div>
         <h1 className="text-3xl font-bold text-slate-900">
@@ -20,8 +20,26 @@ export default function AdminDashboard() {
         </p>
       </div>
 
-      {/* 🔥 KPI CARDS */}
-      <CardchartPage />
+      {/* 🔥 DOWNLOAD REPORT SECTION */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 p-7  shadow-sm gap">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">
+              Download Laporan Pendapatan
+            </h2>
+            <p className="text-sm text-slate-500">
+              Pilih periode waktu lalu unduh laporan dalam format Excel.
+            </p>
+          </div>
+        </div>
+        <br />
+        {/* 🔥 KPI CARDS */}
+        <CardchartPage />
+        <div className="py-8">
+          {/* 🔽 FILTER + DOWNLOAD */}
+          <TestApiPage />
+        </div>
+      </div>
 
       {/* 📈 CHART ROW 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -34,7 +52,6 @@ export default function AdminDashboard() {
         <StatusPage />
         <SellingChartPage />
       </div>
-
     </div>
   );
 }

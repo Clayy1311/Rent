@@ -127,6 +127,7 @@ export default function StatusChart() {
           {data.map((item, index) => {
             const statusKey = item.status.toUpperCase();
             const config = STATUS_CONFIG[statusKey];
+            const totalData = item.total;
 
             return (
               <div 
@@ -142,6 +143,10 @@ export default function StatusChart() {
                 />
                 <span className="text-xs font-medium text-slate-600 truncate">
                   {config?.label || item.status}
+                  
+                </span>
+                <span>
+                  {totalData}
                 </span>
               </div>
             );
