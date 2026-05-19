@@ -232,7 +232,10 @@ async () => {
 export const mybookings = async (userId: number) => {
   const bookings = await prisma.booking.findMany({
     where: {
-      userId
+      userId,
+      status: {
+        in: ['CONFIRMED','FINISHED','RENTED']
+      }
     },
     include: {
       items: {
@@ -276,9 +279,9 @@ export const generateInvoicePDF = (doc: PDFKit.PDFDocument, booking: any) => {
 
   // 2. HEADER (BRANDING)
   doc.fillColor("#2d3436").fontSize(22).text("AZKA OUTDOOR", { align: "right" });
-  doc.fontSize(10).text("Persewaan Alat Gunung & Camping Malang", { align: "right" });
-  doc.text("Jl. Bendungan Sigura-gura, Malang", { align: "right" });
-  doc.text("WA: 0812-3456-7890 | IG: @azkaoutdoor", { align: "right" });
+  doc.fontSize(10).text("Persewaan Alat Gunung & Camping Tuban", { align: "right" });
+  doc.text("Maibit, Desa Rengel, Tuban", { align: "right" });
+  doc.text("WA: 0800-000-00 | IG: @azkaoutdoor", { align: "right" });
   doc.moveDown();
 
   doc.moveTo(50, 115).lineTo(550, 115).strokeColor("#dfe6e9").stroke();

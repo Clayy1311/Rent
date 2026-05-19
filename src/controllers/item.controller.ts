@@ -159,26 +159,35 @@ export const deleteItem = async (req: Request, res: Response) => {
 
 }
 
-export const getavailability = async(req: Request, res: Response) => {
-try {
-  const {startDate, endDate} = req.query;
-  const availability = await itemService.getAvailabilityService (
-    String(startDate),
-    String(endDate)
-  )
+export const getAvailability = async (req, res) => {
+  try {
 
-  return res.status(200).json({
-    "success" :"true",
-    data: availability
-  })
-} catch(error: any)
-{
-  
+    const { startDate, endDate } = req.body;
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({
+        success: false,
+        message: "Tanggal wajib diisi"
+      });
+    }
+
+    const data =
+      await itemService.getItemsAvailability({
+        startDate,
+        endDate
+      });
+
+    return res.json({
+      success: true,
+      data
+    });
+
+  } catch (err: any) {
+
     return res.status(500).json({
       success: false,
-      message: error.message
+      message: err.message
     });
 
   }
-
 };

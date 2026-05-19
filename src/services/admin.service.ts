@@ -270,7 +270,7 @@ export const getRevenueData = async (from?: string, to?: string) => {
   return await prisma.booking.findMany({
     where: {
       ...dateFilter,
-      status: BookingStatus.COMPLETED,
+      status: BookingStatus.FINISHED,
     },
     include: {
       user: { select: { name: true } },
@@ -313,6 +313,7 @@ export const getMonthlyRevenueService = async () => {
     },
     select: {
       totalPrice: true,
+      penaltyAmount: true,
       createdAt: true,
     },
   });
@@ -323,6 +324,7 @@ export const getMonthlyRevenueService = async () => {
     //ambil bulan
     const date = new Date(item.createdAt);
     const month = date.toLocaleDateString("default", { month: "short" });
+   
 
     //cek data dalam montly yang sudah dibuat apa sudah ada bulanya
     if (!monthlyData[month]) {
@@ -468,6 +470,7 @@ export const RevenueSummary = async () => {
     select: {
       totalPrice: true,
       createdAt: true,
+      penaltyAmount: true,
     },
   });
 
@@ -480,29 +483,29 @@ export const RevenueSummary = async () => {
     const year = date.getFullYear();
 
     //total revenue
-    totalRevenue += item.totalPrice;
+    const total = item.totalPrice + (item.penaltyAmount|0);
+    totalRevenue += total;
     //curentmonth
     if (month === currentMonth && year === currentYear) {
-      currentMonthTotal += item.totalPrice;
+      const totalrevenuemonth = item.totalPrice + (item.penaltyAmount|0);
+
+      currentMonthTotal += totalrevenuemonth;
     }
 
     //lastmonth
     if (month === lastMonth && year === lastMonthYear) {
       lastMonthTotal += item.totalPrice;
     }
-
   });
   let growth = 0;
-  if(lastMonthTotal > 0){
-    growth= 
-    ((currentMonthTotal - lastMonthTotal) / lastMonthTotal) * 100;
+  if (lastMonthTotal > 0) {
+    growth = ((currentMonthTotal - lastMonthTotal) / lastMonthTotal) * 100;
   }
 
-  return{
-    
+  return {
     currentMonthTotal,
     totalRevenue,
     lastMonthTotal,
-    growth: Number(growth.toFixed(1))
-  }
+    growth: Number(growth.toFixed(1)),
+  };
 };

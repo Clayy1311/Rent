@@ -73,20 +73,23 @@ export const deleteItem = async (id: number) => {
 
 }
 
-export const getAvailabilityService = async (
-  startDate: string,
-  endDate: string
-) => {
+export const getItemsAvailability = async (data: {
+  startDate: string;
+  endDate: string;
+}) => {
 
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+  const start = new Date(data.startDate);
+  const end = new Date(data.endDate);
 
+  // 1. Ambil semua item
   const items = await prisma.item.findMany();
 
+  // 2. Loop semua item
   const result = await Promise.all(
 
     items.map(async (item) => {
 
+      // 3. Hitung booking yang overlap
       const overlapping =
         await prisma.bookingItem.aggregate({
 
@@ -99,7 +102,6 @@ export const getAvailabilityService = async (
             itemId: item.id,
 
             booking: {
-
               status: {
                 in: [
                   BookingStatus.PENDING_PAYMENT,
@@ -114,7 +116,6 @@ export const getAvailabilityService = async (
                     lte: end
                   }
                 },
-
                 {
                   endDate: {
                     gte: new Date(
@@ -124,18 +125,29 @@ export const getAvailabilityService = async (
                   }
                 }
               ]
-
             }
 
           }
 
         });
 
+      // 4. Hitung stok
       const booked =
         overlapping._sum.quantity || 0;
 
       const available =
         item.stock - booked;
+
+      // 5. Tentukan status
+      let status: "FULL" | "LIMITED" | "AVAILABLE";
+
+      if (available <= 0) {
+        status = "FULL";
+      } else if (available <= 2) {
+        status = "LIMITED";
+      } else {
+        status = "AVAILABLE";
+      }
 
       return {
         id: item.id,
@@ -143,11 +155,7 @@ export const getAvailabilityService = async (
         stock: item.stock,
         booked,
         available,
-
-        status:
-          available <= 0
-            ? "FULL"
-            : "AVAILABLE"
+        status
       };
 
     })
@@ -155,5 +163,4 @@ export const getAvailabilityService = async (
   );
 
   return result;
-
 };

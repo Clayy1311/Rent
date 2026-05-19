@@ -31,4 +31,5 @@ router.get("/users", authMiddleware, adminMiddleware, getAllUsers)
 router.get("/reports/donwload", authMiddleware, adminMiddleware, downloadExcelReport)
 router.get("/revenue-summary", authMiddleware,adminMiddleware,getTotalrevenueController)
 
+
 export default router;

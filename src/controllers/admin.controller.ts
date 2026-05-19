@@ -116,8 +116,9 @@ export const downloadExcelReport = async (req: Request, res: Response) => {
       { header: "Pelanggan", key: "pelanggan", width: 25 },
       { header: "Total Sewa", key: "sewa", width: 15 },
       { header: "Denda", key: "denda", width: 15 },
+      {header: "Status", key: "status", width: 15},
       { header: "Total Bayar", key: "total", width: 15 },
-      { header: "Metode", key: "metode", width: 15 },
+    
     ];
 
     // 3. Tambahkan Data
@@ -128,8 +129,9 @@ export const downloadExcelReport = async (req: Request, res: Response) => {
         pelanggan: b.user.name,
         sewa: b.totalPrice,
         denda: b.penaltyAmount || 0,
+        status: b.status,
         total: b.totalPrice + (b.penaltyAmount || 0),
-        metode: b.payment?.paymentMethod || "-",
+       
       });
     });
 

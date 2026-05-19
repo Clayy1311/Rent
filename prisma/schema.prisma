@@ -40,6 +40,8 @@ model User {
   name      String
   email     String    @unique
   password  String
+address String @default("")
+  phone   String @default("")
   role      Role      @default(USER)
   bookings  Booking[]
   createdAt DateTime  @default(now())
