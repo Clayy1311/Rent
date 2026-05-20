@@ -40,6 +40,8 @@ export const processReturn = async (bookingId: number, adminNote: string) => {
     throw new Error("Hanya barang dengan status RENTED yang bisa dikembalikan");
   }
 
+  const price = booking.totalPrice;
+
   const now = new Date();
 
   // --- LOGIKA BATAS AKHIR HARI ---
@@ -52,10 +54,14 @@ export const processReturn = async (bookingId: number, adminNote: string) => {
   // Sekarang denda cuma dihitung kalau 'now' sudah lewat dari jam 23:59 malam
   if (now.getTime() > deadline.getTime()) {
     const diffInMs = now.getTime() - deadline.getTime();
+     
 
-    // Hitung denda per jam (dihitung mulai dari lewat tengah malam)
-    const diffInHours = Math.ceil(diffInMs / (1000 * 60 * 60));
-    penalty = diffInHours * 5000;
+    const pen = Math.ceil(diffInMs/ (1000 *60 *60 * 24));
+    penalty = pen * price;
+
+    // // Hitung denda per jam (dihitung mulai dari lewat tengah malam)
+    // const diffInHours = Math.ceil(diffInMs / (1000 *  60 * 60));
+    // penalty = diffInHours * 5000;
   }
 
   // Update dan kembalikan hasil terbarunya
@@ -179,6 +185,11 @@ export const getAllBookings = async (params: {
         select: { name: true, email: true },
       },
       payment: true,
+      items: {
+        include: {
+          item: true,
+        }
+      }
     },
     take: limit,
     skip: skip,
@@ -304,10 +315,9 @@ export const getBookingDetail = async (id: number) => {
   return booking;
 };
 
-export const getMonthlyRevenueService = async () => {
-  //ambil data booking yang statusnya finish
-  //ambill total dan created at nya aja
-  const dataMontlhy = await prisma.booking.findMany({
+export const getMonthlyRevenueService = async () => { 
+  // Ambil data booking yang statusnya FINISHED
+  const dataMonthly = await prisma.booking.findMany({
     where: {
       status: "FINISHED",
     },
@@ -318,25 +328,25 @@ export const getMonthlyRevenueService = async () => {
     },
   });
 
-  //loop data
   const monthlyData = {};
-  dataMontlhy.forEach((item) => {
-    //ambil bulan
+  
+  dataMonthly.forEach((item) => {
     const date = new Date(item.createdAt);
-    const month = date.toLocaleDateString("default", { month: "short" });
-   
+    
+    // PERBAIKAN: Gunakan format 'id-ID' agar singkatan bulan seragam "Apr", "Mei", dll.
+    const month = date.toLocaleDateString("id-ID", { month: "short" });
 
-    //cek data dalam montly yang sudah dibuat apa sudah ada bulanya
     if (!monthlyData[month]) {
       monthlyData[month] = 0;
     }
 
-    //jika ada
-    monthlyData[month] += item.totalPrice || 0;
+    // FIX OPERATOR JAVASCRIPT: Kurung pembungkus wajib terpisah agar denda ikut dijumlahkan!
+    const totalPerItem = (item.totalPrice || 0) + (item.penaltyAmount || 0);
+    
+    monthlyData[month] += totalPerItem;
   });
 
-  //ubah menjadi array untuk front end
-
+  // Ubah menjadi array untuk front-end
   const result = Object.keys(monthlyData).map((month) => ({
     month,
     total: monthlyData[month],
@@ -450,19 +460,26 @@ export const getAllUsers = async () => {
     where: {
       role: "USER",
     },
+    select:{
+      name: true,
+      email: true,
+      phone: true,
+      address: true
+    }
   });
 };
 
 export const RevenueSummary = async () => {
-  //ambil tanggal sekarang
+  // Ambil tanggal sekarang
   const now = new Date();
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
 
-  //tentukan lastmonth
+  // Tentukan last month
   const lastMonthDate = new Date(currentYear, currentMonth - 1);
   const lastMonth = lastMonthDate.getMonth();
   const lastMonthYear = lastMonthDate.getFullYear();
+
   const dataprice = await prisma.booking.findMany({
     where: {
       status: "FINISHED",
@@ -477,29 +494,37 @@ export const RevenueSummary = async () => {
   let currentMonthTotal = 0;
   let totalRevenue = 0;
   let lastMonthTotal = 0;
+
   dataprice.forEach((item) => {
     const date = new Date(item.createdAt);
     const month = date.getMonth();
     const year = date.getFullYear();
 
-    //total revenue
-    const total = item.totalPrice + (item.penaltyAmount|0);
-    totalRevenue += total;
-    //curentmonth
-    if (month === currentMonth && year === currentYear) {
-      const totalrevenuemonth = item.totalPrice + (item.penaltyAmount|0);
+    // Sembuhkan total per-item (Harga sewa + Denda) menggunakan || 0
+    const totalItem = (item.totalPrice || 0) + (item.penaltyAmount || 0);
 
-      currentMonthTotal += totalrevenuemonth;
+    // Accumulate total keseluruhan
+    totalRevenue += totalItem;
+
+    // Hitung Pendapatan Bulan Ini (Current Month)
+    if (month === currentMonth && year === currentYear) {
+      currentMonthTotal += totalItem;
     }
 
-    //lastmonth
+    // Hitung Pendapatan Bulan Lalu (Last Month)
+    // FIX BUG: Sekarang bulan lalu juga dihitung adil beserta dendanya!
     if (month === lastMonth && year === lastMonthYear) {
-      lastMonthTotal += item.totalPrice;
+      lastMonthTotal += totalItem;
     }
   });
+
+  // Hitung persentase pertumbuhan (Growth)
   let growth = 0;
   if (lastMonthTotal > 0) {
     growth = ((currentMonthTotal - lastMonthTotal) / lastMonthTotal) * 100;
+  } else if (lastMonthTotal === 0 && currentMonthTotal > 0) {
+    // Pengaman: Jika bulan lalu belum ada pemasukan (0) tapi bulan ini ada omzet, growth = 100%
+    growth = 100;
   }
 
   return {
