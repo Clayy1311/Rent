@@ -42,7 +42,7 @@ export default function LandingPage() {
     script.src = "https://app.sandbox.midtrans.com/snap/snap.js";
     script.setAttribute(
       "data-client-key",
-      process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY!
+      process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY!,
     );
     document.body.appendChild(script);
   }, [initialItems]);
@@ -54,7 +54,6 @@ export default function LandingPage() {
 
   return (
     <main className="min-h-screen bg-[#f8fafc]">
-      
       <Navbar mounted={mounted} user={user} token={token} logout={logout} />
 
       <Hero />
@@ -66,12 +65,9 @@ export default function LandingPage() {
       {/* PACKAGE */}
       <section className="bg-emerald-50/40 border-y border-emerald-100">
         <div className="container mx-auto px-6 py-16">
-          
           <div className="mb-10">
             <div className="w-12 h-1 bg-emerald-500 rounded-full mb-4"></div>
-            <h2 className="text-3xl font-bold text-slate-900">
-              Paket Hemat
-            </h2>
+            <h2 className="text-3xl font-bold text-slate-900">Paket Hemat</h2>
           </div>
 
           {pkgLoading ? (
@@ -98,33 +94,40 @@ export default function LandingPage() {
       </section>
 
       {/* CATEGORY */}
-      <section className="container mx-auto px-6 my-6">
-        <div className="flex flex-wrap gap-3">
-
-          <Button
-            variant={selectedCatId === null ? "default" : "outline"}
+      <section className="w-full max-w-6xl mx-auto px-6 my-8 animate-in fade-in duration-500">
+        <div className="flex items-center gap-3 overflow-x-auto pb-3 scrollbar-none snap-x">
+          {/* TOMBOL ALL / SEMUA */}
+          <button
             onClick={() => setSelectedCatId(null)}
+            className={`snap-center shrink-0 px-6 py-3.5 rounded-xl text-[10px] font-black uppercase italic tracking-widest transition-all duration-200 border ${
+              selectedCatId === null
+                ? "bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-600/20"
+                : "bg-white text-slate-400 border-slate-200/60 hover:text-slate-800 hover:border-slate-300 bg-white"
+            }`}
           >
-            Semua
-          </Button>
+            Semua Alat
+          </button>
 
+          {/* LOOPING KATEGORI DARI API */}
           {categories?.map((cat) => (
-            <Button
+            <button
               key={cat.id}
-              variant={selectedCatId === cat.id ? "default" : "outline"}
               onClick={() => setSelectedCatId(cat.id)}
+              className={`snap-center shrink-0 px-6 py-3.5 rounded-xl text-[10px] font-black uppercase italic tracking-widest transition-all duration-200 border ${
+                selectedCatId === cat.id
+                  ? "bg-slate-950 text-white border-slate-950 shadow-lg shadow-slate-950/20"
+                  : "bg-white text-slate-400 border-slate-200/60 hover:text-slate-800 hover:border-slate-300"
+              }`}
             >
               {cat.name}
-            </Button>
+            </button>
           ))}
-
         </div>
       </section>
 
       {/* ITEMS */}
       <section className="container mx-auto px-6 pb-24">
         <div className="bg-white rounded-3xl p-6 border shadow-sm">
-          
           <h3 className="text-xl text-black font-semibold mb-6">
             Pilih Peralatanmu
           </h3>
@@ -138,24 +141,18 @@ export default function LandingPage() {
           {loading ? (
             <Loader2 className="animate-spin mx-auto" />
           ) : filteredItems.length > 0 ? (
-
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {filteredItems.map((item) => (
                 <ItemCard
                   key={item.id}
                   item={item}
                   onAdd={addToCart}
-                  availability={availability.find(
-                    (a) => a.id === item.id
-                  )}
+                  availability={availability.find((a) => a.id === item.id)}
                 />
               ))}
             </div>
-
           ) : (
-            <p className="text-center text-slate-400">
-              Tidak ada item
-            </p>
+            <p className="text-center text-slate-400">Tidak ada item</p>
           )}
         </div>
       </section>

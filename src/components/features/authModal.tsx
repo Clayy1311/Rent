@@ -87,7 +87,10 @@ export function AuthModal({
           }
         }, 500);
       } else {
-        toast.success("Registrasi berhasil! Silakan login.");
+        toast.success("Registrasi berhasil!", {
+          description: "Silakan cek email kamu untuk verifikasi akun.",
+        });
+
         setIsLogin(true);
       }
     } catch (err: any) {
@@ -101,7 +104,6 @@ export function AuthModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[420px] z-[100] bg-slate-950 border border-slate-800 text-white rounded-2xl shadow-2xl">
-
         {/* HEADER */}
         <DialogHeader className="items-center">
           <div className="p-3 bg-primary/10 rounded-2xl mb-2">
@@ -129,7 +131,6 @@ export function AuthModal({
 
         {/* FORM */}
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-
           {/* REGISTER FIELD */}
           {!isLogin && (
             <>

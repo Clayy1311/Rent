@@ -9,7 +9,7 @@ import { useModalStore } from "@/store/useModalStore";
 export function Navbar({ mounted, user, token, logout }: any) {
   const { openAuth } = useModalStore();
 
-  return (
+  return ( 
     // 1. HEADER SEBAGAI WRAPPER STICKY
     <header className="sticky top-0 z-[100] w-full bg-white/90 backdrop-blur-md border-b border-slate-100 shadow-sm">
       <nav className="container mx-auto px-6 h-20 flex items-center justify-between">

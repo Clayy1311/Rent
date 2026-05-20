@@ -99,18 +99,52 @@ export default function AdminAllBookingsPage() {
           />
         </div>
         
-        <Select onValueChange={handleStatusFilter}>
-          <SelectTrigger className="w-full md:w-[260px] py-7 rounded-[24px] border-slate-100 text-slate-950 font-black uppercase italic text-[10px] bg-white shadow-sm tracking-widest">
-            <SelectValue placeholder="FILTER STATUS" />
-          </SelectTrigger>
-          <SelectContent className="rounded-2xl font-bold uppercase text-[10px] tracking-widest border-slate-100 shadow-xl">
-            <SelectItem value="ALL">SEMUA STATUS</SelectItem>
-            <SelectItem value="WAITING_CONFIRMATION">WAITING CONFIRMATION</SelectItem>
-            <SelectItem value="PAID">PAID</SelectItem>
-            <SelectItem value="PICKED_UP">PICKED UP</SelectItem>
-            <SelectItem value="RETURNED">RETURNED</SelectItem>
-          </SelectContent>
-        </Select>
+     {/* FILTER BAR STATUS - FIX UNCONTROLLED STATE & SYNC ENUM */}
+<Select 
+  value={filters.status || "ALL"} 
+  onValueChange={handleStatusFilter}
+>
+  <SelectTrigger className="w-full md:min-w-[280px] md:w-auto py-7 px-6 rounded-[24px] border-slate-200 text-slate-950 font-black uppercase italic text-[10px] bg-white shadow-sm tracking-widest focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all text-left">
+    <SelectValue placeholder="FILTER STATUS" />
+  </SelectTrigger>
+  
+  <SelectContent className="rounded-2xl font-black uppercase text-[10px] tracking-widest border-slate-100 py-2 text-slate-800 bg-white shadow-2xl animate-in fade-in-50 slide-in-from-top-1 duration-200">
+    <SelectItem 
+      value="ALL" 
+      className="py-3 px-4 rounded-xl cursor-pointer focus:bg-blue-50 focus:text-blue-600 font-black italic transition-colors"
+    >
+      SEMUA STATUS
+    </SelectItem>
+    
+    <SelectItem 
+      value="CONFIRMED" 
+      className="py-3 px-4 rounded-xl cursor-pointer focus:bg-blue-50 focus:text-blue-600 font-black italic transition-colors"
+    >
+      CONFIRMED
+    </SelectItem>
+
+    <SelectItem 
+      value="RENTED" 
+      className="py-3 px-4 rounded-xl cursor-pointer focus:bg-blue-50 focus:text-blue-600 font-black italic transition-colors"
+    >
+      RENTED
+    </SelectItem>
+
+    <SelectItem 
+      value="FINISHED" 
+      className="py-3 px-4 rounded-xl cursor-pointer focus:bg-blue-50 focus:text-blue-600 font-black italic transition-colors"
+    >
+      FINISHED
+    </SelectItem>
+   
+    <SelectItem 
+      value="EXPIRED" 
+      className="py-3 px-4 rounded-xl cursor-pointer focus:bg-blue-50 focus:text-blue-600 font-black italic transition-colors"
+    >
+      EXPIRED
+    </SelectItem>
+  </SelectContent>
+</Select>
       </div>
 
       {/* TABLE SECTION */}
