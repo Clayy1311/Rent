@@ -42,9 +42,21 @@ model User {
   password  String
 address String @default("")
   phone   String @default("")
+  isVerified Boolean @default(false)
   role      Role      @default(USER)
   bookings  Booking[]
   createdAt DateTime  @default(now())
+   emailVerifications EmailVerification[]
+
+}
+
+model EmailVerification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  token     String   @unique
+  expiresAt DateTime
+
+  user User @relation(fields: [userId], references: [id])
 }
 
 model Category {
