@@ -1,8 +1,13 @@
 import prisma from "../config/prisma";
 import { BookingStatus } from "@prisma/client";
 import { Booking } from "@prisma/client";
+import { PaymentStatus } from "@prisma/client";
 import { Item } from "@prisma/client";
 import { User } from "@prisma/client";
+import { addDays } from "date-fns";
+import { startOfMonth, endOfMonth, subMonths } from "date-fns";
+import { startOfDay } from "date-fns";
+import { OfflineCustomer } from "@prisma/client";
 
 // SERVICE PICKUP: Mengubah status dari CONFIRMED ke RENTED
 export const confirmPickUp = async (bookingId: number) => {
@@ -27,7 +32,155 @@ export const confirmPickUp = async (bookingId: number) => {
   });
 };
 
-// SERVICE RETURN: Menghitung denda otomatis dan menyelesaikan transaksi
+export const createAdminBooking = async (
+  adminId: number,
+  data: {
+    name: string;
+    phoneNumber: string;
+    startDate: string;
+    endDate: string;
+    paymentMethod: "CASH" | "TRANSFER" | "QRIS";
+    discount?: number; // 💡 TAMBAHKAN KOLOM DISKON OPSIONAL DI SINI
+    items: {
+      itemId: number;
+      quantity: number;
+    }[];
+  },
+) => {
+  const start = new Date(data.startDate);
+  const end = new Date(data.endDate);
+
+  // 🔥 HITUNG DURASI HARI
+  const duration = Math.max(
+    1,
+    Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)),
+  );
+
+  let totalPrice = 0;
+
+  const validatedItems: {
+    itemId: number;
+    quantity: number;
+    price: number;
+  }[] = [];
+
+  // 🔥 VALIDASI ITEM + STOCK
+  for (const cartItem of data.items) {
+    const item = await prisma.item.findUnique({
+      where: { id: cartItem.itemId },
+    });
+
+    if (!item) {
+      throw new Error("Item tidak ditemukan");
+    }
+
+    const overlappingBookings = await prisma.bookingItem.aggregate({
+      _sum: { quantity: true },
+      where: {
+        itemId: cartItem.itemId,
+        booking: {
+          status: {
+            in: [
+              BookingStatus.PENDING_PAYMENT,
+              BookingStatus.WAITING_CONFIRMATION,
+              BookingStatus.CONFIRMED,
+              BookingStatus.RENTED,
+            ],
+          },
+          AND: [
+            { startDate: { lte: end } },
+            {
+              endDate: {
+                gte: new Date(start.getTime() - 24 * 60 * 60 * 1000),
+              },
+            },
+          ],
+        },
+      },
+    });
+
+    const bookedQuantity = overlappingBookings._sum.quantity || 0;
+    const availableStock = item.stock - bookedQuantity;
+
+    if (cartItem.quantity > availableStock) {
+      throw new Error(
+        `Stok ${item.name} tidak mencukupi. Tersedia: ${availableStock}`,
+      );
+    }
+
+    // 🔥 HITUNG HARGA NORMAL SEBELUM DISKON
+    totalPrice += item.price * cartItem.quantity * duration;
+
+    validatedItems.push({
+      itemId: item.id,
+      quantity: cartItem.quantity,
+      price: item.price,
+    });
+  }
+
+  // 💡 POTONG DENGAN HARGA DISKON JIKA DIKIRIM DARI FRONTEND
+  if (data.discount && data.discount > 0) {
+    // Total diskon paket dikali durasi sewa hari
+    const totalCut = data.discount * duration;
+    // Pastikan totalPrice tidak bernilai minus
+    totalPrice = Math.max(0, totalPrice - totalCut);
+  }
+
+  const bookingCode = `ADM-${Date.now()}-${adminId}`;
+
+  const result = await prisma.$transaction(async (tx) => {
+    // 1️⃣ CREATE BOOKING (Sudah menggunakan totalPrice setelah diskon)
+    // 1️⃣ CREATE OFFLINE CUSTOMER
+    const customer = await tx.offlineCustomer.create({
+      data: {
+        name: data.name,
+        phoneNumber: data.phoneNumber,
+      },
+    });
+    const newBooking = await tx.booking.create({
+      data: {
+        userId: adminId,
+        bookingCode,
+        startDate: start,
+        endDate: end,
+        totalPrice, //
+
+        status: BookingStatus.RENTED,
+
+        // Relasi ke customer offline
+        offlineCustomerId: customer.id,
+      },
+    });
+
+    // 2️⃣ CREATE ITEMS
+    for (const item of validatedItems) {
+      await tx.bookingItem.create({
+        data: {
+          bookingId: newBooking.id,
+          itemId: item.itemId,
+          quantity: item.quantity,
+          price: item.price,
+        },
+      });
+    }
+
+    // 3️⃣ PAYMENT (Jumlah tagihan bayar jadi akurat ikut terpotong diskon)
+    await tx.payment.create({
+      data: {
+        bookingId: newBooking.id,
+        amount: totalPrice, // 🎯 Jumlah bayar lunas otomatis 179 Ribu
+        paymentProof: data.paymentMethod,
+        status: PaymentStatus.VERIFIED,
+      },
+    });
+
+    return newBooking;
+  });
+
+  return {
+    booking: result,
+  };
+};
 export const processReturn = async (bookingId: number, adminNote: string) => {
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
@@ -35,47 +188,58 @@ export const processReturn = async (bookingId: number, adminNote: string) => {
 
   if (!booking) throw new Error("Booking tidak ditemukan");
 
-  // Pastikan status dicek dengan benar
   if (booking.status !== BookingStatus.RENTED) {
     throw new Error("Hanya barang dengan status RENTED yang bisa dikembalikan");
   }
 
   const price = booking.totalPrice;
 
-  const now = new Date();
+  // =========================
+  // NORMALIZE DATE (BUANG JAM + TIMEZONE ISSUE)
+  // =========================
+  const toDateOnly = (date: Date) =>
+    new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
-  // --- LOGIKA BATAS AKHIR HARI ---
-  // Kita paksa jam di endDate jadi 23:59:59 hari itu.
-  const deadline = new Date(booking.endDate);
-  deadline.setHours(23, 59, 59, 999);
+  const endDate = toDateOnly(new Date(booking.endDate));
+  const today = toDateOnly(new Date());
 
+  // =========================
+  // HITUNG SELISIH HARI
+  // =========================
+  const diffTime = today.getTime() - endDate.getTime();
+
+  let lateDays = 0;
+  let isLate = false;
   let penalty = 0;
 
-  // Sekarang denda cuma dihitung kalau 'now' sudah lewat dari jam 23:59 malam
-  if (now.getTime() > deadline.getTime()) {
-    const diffInMs = now.getTime() - deadline.getTime();
-     
-
-    const pen = Math.ceil(diffInMs/ (1000 *60 *60 * 24));
-    penalty = pen * price;
-
-    // // Hitung denda per jam (dihitung mulai dari lewat tengah malam)
-    // const diffInHours = Math.ceil(diffInMs / (1000 *  60 * 60));
-    // penalty = diffInHours * 5000;
+  if (diffTime > 0) {
+    lateDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    isLate = true;
+    penalty = lateDays * price;
   }
 
-  // Update dan kembalikan hasil terbarunya
+  // =========================
+  // UPDATE DATABASE
+  // =========================
   const updatedBooking = await prisma.booking.update({
     where: { id: bookingId },
     data: {
-      status: BookingStatus.FINISHED, // Pastikan ini sesuai enum di Prisma lu
-      actualReturnDate: now,
+      status: BookingStatus.FINISHED,
+      actualReturnDate: new Date(),
       penaltyAmount: penalty,
       adminNote: adminNote || "Barang kembali lengkap",
     },
   });
 
-  return updatedBooking;
+  // =========================
+  // RESPONSE KE FRONTEND
+  // =========================
+  return {
+    ...updatedBooking,
+    isLate,
+    lateDays,
+    penaltyAmount: penalty,
+  };
 };
 
 export const getDashboardStats = async () => {
@@ -86,7 +250,7 @@ export const getDashboardStats = async () => {
       penaltyAmount: true,
     },
     where: {
-      status: BookingStatus.COMPLETED,
+      status: BookingStatus.FINISHED,
     },
   });
 
@@ -150,57 +314,85 @@ export const getAllBookings = async (params: {
   search?: string;
 }) => {
   const { page, limit, status, search } = params;
+
   const skip = (page - 1) * limit;
 
-  // Bangun whereClause dengan hati-hati
-  const whereClause: any = {};
+  const where: any = {};
 
-  if (status) {
-    whereClause.status = status;
-  }
+  // Jika status ada isinya, dan nilainya BUKAN "ALL" maupun string kosong ""
+if (status && status !== "ALL" && status.trim() !== "") {
+  where.status = status;
+} else {
+  // Kondisi default/Semua Status: tampilkan yang FINISHED dan RENTED
+  where.status = {
+    in: ["FINISHED", "RENTED"],
+  };
+}
 
+  // search bookingCode atau nama user
   if (search) {
-    whereClause.OR = [
+    where.OR = [
       {
         bookingCode: {
           contains: search,
-          // HAPUS mode: "insensitive" di sini
         },
       },
       {
         user: {
           name: {
             contains: search,
-            // HAPUS mode: "insensitive" di sini
           },
         },
       },
     ];
   }
 
+  // ambil data
   const data = await prisma.booking.findMany({
-    where: whereClause,
+    where,
     include: {
       user: {
-        select: { name: true, email: true },
+        select: {
+          name: true,
+          email: true,
+        },
       },
       payment: true,
       items: {
         include: {
           item: true,
+        },
+      },
+      offlineCustomer: {
+        select: {
+          name: true,
+          phoneNumber: true,
         }
       }
     },
     take: limit,
-    skip: skip,
-    orderBy: { createdAt: "desc" },
+    skip,
+    orderBy: {
+      createdAt: "desc",
+    },
   });
 
-  // Hitung total untuk meta
-  const total = await prisma.booking.count({ where: whereClause });
+  // total data sesuai filter
+  const total = await prisma.booking.count({
+    where,
+  });
+
+  // Petakan data untuk menambahkan totalBayar secara dinamis
+  const formattedBookings = data.map((booking) => {
+    const penalty = booking.penaltyAmount ?? 0;
+    return {
+      ...booking,
+      totalBayar: booking.totalPrice + penalty,
+    };
+  });
 
   return {
-    bookings: data,
+    bookings: formattedBookings,
     meta: {
       totalData: total,
       totalPages: Math.ceil(total / limit),
@@ -268,29 +460,37 @@ export const getReportData = async (filters: {
 };
 
 export const getRevenueData = async (from?: string, to?: string) => {
-  const dateFilter =
-    from && to
-      ? {
-          createdAt: {
-            gte: new Date(from),
-            lte: new Date(to),
-          },
-        }
-      : {};
+  let dateFilter = {};
 
-  return await prisma.booking.findMany({
+  if (from && to) {
+    // 🔥 paksa jadi awal hari
+    const start = startOfDay(new Date(from));
+
+    // 🔥 +1 hari biar full inclusive
+    const end = startOfDay(addDays(new Date(to), 1));
+
+    dateFilter = {
+      createdAt: {
+        gte: start,
+        lt: end,
+      },
+    };
+  }
+
+  return prisma.booking.findMany({
     where: {
+      status: "FINISHED",
       ...dateFilter,
-      status: BookingStatus.FINISHED,
     },
     include: {
       user: { select: { name: true } },
       payment: true,
     },
-    orderBy: { createdAt: "asc" },
+    orderBy: {
+      createdAt: "asc",
+    },
   });
 };
-
 export const getBookingDetail = async (id: number) => {
   const booking = await prisma.booking.findUnique({
     where: { id },
@@ -315,7 +515,7 @@ export const getBookingDetail = async (id: number) => {
   return booking;
 };
 
-export const getMonthlyRevenueService = async () => { 
+export const getMonthlyRevenueService = async () => {
   // Ambil data booking yang statusnya FINISHED
   const dataMonthly = await prisma.booking.findMany({
     where: {
@@ -329,10 +529,10 @@ export const getMonthlyRevenueService = async () => {
   });
 
   const monthlyData = {};
-  
+
   dataMonthly.forEach((item) => {
     const date = new Date(item.createdAt);
-    
+
     // PERBAIKAN: Gunakan format 'id-ID' agar singkatan bulan seragam "Apr", "Mei", dll.
     const month = date.toLocaleDateString("id-ID", { month: "short" });
 
@@ -342,7 +542,7 @@ export const getMonthlyRevenueService = async () => {
 
     // FIX OPERATOR JAVASCRIPT: Kurung pembungkus wajib terpisah agar denda ikut dijumlahkan!
     const totalPerItem = (item.totalPrice || 0) + (item.penaltyAmount || 0);
-    
+
     monthlyData[month] += totalPerItem;
   });
 
@@ -388,31 +588,21 @@ export const getStatusService = async () => {
 
   const statusData = {
     FINISHED: 0,
-    EXPIRED: 0,
-    CONFIRMED: 0,
     RENTED: 0,
   };
 
-  //LOOP
   data.forEach((item) => {
     if (item.status === "FINISHED") {
-      statusData.FINISHED += 1;
-    } else if (item.status === "EXPIRED") {
-      statusData.EXPIRED += 1;
-    } else if (item.status === "CONFIRMED") {
-      statusData.CONFIRMED += 1;
+      statusData.FINISHED++;
     } else if (item.status === "RENTED") {
-      statusData.RENTED += 1;
+      statusData.RENTED++;
     }
   });
 
-  const result = [
+  return [
     { status: "FINISHED", total: statusData.FINISHED },
-    { status: "EXPIRED", total: statusData.EXPIRED },
-    { status: "CONFIRMED", total: statusData.CONFIRMED },
     { status: "RENTED", total: statusData.RENTED },
   ];
-  return result;
 };
 
 export const getItemBestSelling = async () => {
@@ -460,77 +650,229 @@ export const getAllUsers = async () => {
     where: {
       role: "USER",
     },
-    select:{
+    select: {
       name: true,
       email: true,
       phone: true,
-      address: true
-    }
+      address: true,
+    },
   });
 };
 
 export const RevenueSummary = async () => {
-  // Ambil tanggal sekarang
   const now = new Date();
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
 
-  // Tentukan last month
-  const lastMonthDate = new Date(currentYear, currentMonth - 1);
-  const lastMonth = lastMonthDate.getMonth();
-  const lastMonthYear = lastMonthDate.getFullYear();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = addDays(new Date(now.getFullYear(), now.getMonth() + 1, 0), 1);
 
-  const dataprice = await prisma.booking.findMany({
+  const lastStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastEnd = addDays(new Date(now.getFullYear(), now.getMonth(), 0), 1);
+
+  // 🔥 1. AMBIL SEMUA DATA (UNTUK TOTAL REVENUE GLOBAL)
+  const allData = await prisma.booking.findMany({
     where: {
       status: "FINISHED",
     },
     select: {
-      totalPrice: true,
+      id: true,
       createdAt: true,
+      totalPrice: true,
       penaltyAmount: true,
     },
   });
 
-  let currentMonthTotal = 0;
   let totalRevenue = 0;
+  let currentMonthTotal = 0;
   let lastMonthTotal = 0;
+  let currentMonthCount = 0;
 
-  dataprice.forEach((item) => {
+  const currentMonthBookings: any[] = [];
+
+  allData.forEach((item) => {
     const date = new Date(item.createdAt);
-    const month = date.getMonth();
-    const year = date.getFullYear();
 
-    // Sembuhkan total per-item (Harga sewa + Denda) menggunakan || 0
-    const totalItem = (item.totalPrice || 0) + (item.penaltyAmount || 0);
+    const total = (item.totalPrice || 0) + (item.penaltyAmount || 0);
 
-    // Accumulate total keseluruhan
-    totalRevenue += totalItem;
+    // 🔥 GLOBAL TOTAL (SEMUA DATA)
+    totalRevenue += total;
 
-    // Hitung Pendapatan Bulan Ini (Current Month)
-    if (month === currentMonth && year === currentYear) {
-      currentMonthTotal += totalItem;
+    // 🔥 CURRENT MONTH
+    if (date >= start && date < end) {
+      currentMonthTotal += total;
+      currentMonthCount++;
+
+      currentMonthBookings.push({
+        id: item.id,
+        createdAt: item.createdAt,
+        total,
+      });
     }
 
-    // Hitung Pendapatan Bulan Lalu (Last Month)
-    // FIX BUG: Sekarang bulan lalu juga dihitung adil beserta dendanya!
-    if (month === lastMonth && year === lastMonthYear) {
-      lastMonthTotal += totalItem;
+    // 🔥 LAST MONTH
+    if (date >= lastStart && date < start) {
+      lastMonthTotal += total;
     }
   });
 
-  // Hitung persentase pertumbuhan (Growth)
   let growth = 0;
+
   if (lastMonthTotal > 0) {
     growth = ((currentMonthTotal - lastMonthTotal) / lastMonthTotal) * 100;
-  } else if (lastMonthTotal === 0 && currentMonthTotal > 0) {
-    // Pengaman: Jika bulan lalu belum ada pemasukan (0) tapi bulan ini ada omzet, growth = 100%
-    growth = 100;
+  } else {
+    growth = currentMonthTotal > 0 ? 100 : 0;
   }
 
   return {
+    totalRevenue, // 🔥 FIXED (SEMUA BULAN)
     currentMonthTotal,
-    totalRevenue,
     lastMonthTotal,
+    currentMonthCount,
     growth: Number(growth.toFixed(1)),
   };
 };
+export const GetAllTransactionService = async (
+  page: number,
+  limit: number,
+  search?: string,
+) => {
+  const skip = (page - 1) * limit;
+
+  const whereCondition: any = {
+    status: "FINISHED",
+  };
+
+  if (search) {
+    whereCondition.OR = [
+      {
+        bookingCode: {
+          contains: search,
+        },
+      },
+      {
+        user: {
+          name: {
+            contains: search,
+          },
+        },
+      },
+    ];
+  }
+
+  const [data, total] = await Promise.all([
+    prisma.booking.findMany({
+      where: whereCondition,
+      skip,
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      select: {
+        bookingCode: true,
+        startDate: true,
+        endDate: true,
+        totalPrice: true,
+        penaltyAmount: true,
+        user: {
+          select: { name: true },
+        },
+        payment: {
+          select: { paymentProof: true },
+        },
+        offlineCustomer: {
+          select: {
+            name: true,
+          }
+        }
+      },
+    }),
+
+    prisma.booking.count({
+      where: whereCondition,
+    }),
+  ]);
+
+  return {
+    data,
+    meta: {
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+};
+
+export const ArchiveItemService = async(id: number) => {
+  return await prisma.item.update({
+    where: {id},
+    data: {
+      isDeleted: true,
+    }
+  })
+}
+
+export const UnarchiveItemService = async(id: number) => {
+  return await prisma.item.update({
+    where: {id},
+    data: {
+      isDeleted: false,
+    }
+  })
+}
+
+export const ArchivePackageService = async(id: number) => {
+  return await prisma.package.update({
+    where: {id},
+    data:{
+      isDeleted: true,
+    }
+  })
+}
+export const UnarchivePakcageService= async(id:number) => {
+  return await prisma.package.update({
+    where: {id},
+    data: {
+      isDeleted: false,
+    }
+  })
+}
+
+export const ArchiveCategoryService = async(id: number)=>{
+  return await prisma.category.update({
+    where: {id},
+    data: {
+      isDeleted: true,
+    }
+  })
+}
+
+export const UnarchiveCategoryService = async(id: number) => {
+  return await prisma.category.update({
+    where: {id},
+    data: {
+      isDeleted: false,
+    }
+  })
+}
+
+export const GetAllArchiveItemService = async() => {
+  return await prisma.item.findMany({
+    where: {
+      isDeleted: true,
+    }
+  })
+}
+export const GetAllArchiveCategoryService = async() => {
+  return await prisma.category.findMany({
+    where: {
+      isDeleted: true,
+    }
+  })
+}
+export const GetAllArchivePackageService = async() => {
+  return await prisma.package.findMany({
+    where: {
+      isDeleted: true,
+    },
+    include: {
+      package_items: true,
+    }
+  })
+}

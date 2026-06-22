@@ -6,6 +6,9 @@ import { snap  } from "../config/midtrans";
 // Fungsi untuk mengambil semua paket dengan perhitungan harga coret
 export const getAllPackages = async () => {
   const packages = await prisma.package.findMany({
+    where: {
+     isDeleted: false,
+    },
     include: {
       package_items: {
         include: { item: true }

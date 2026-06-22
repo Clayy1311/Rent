@@ -294,7 +294,7 @@ export const generateInvoicePDF = (doc: PDFKit.PDFDocument, booking: any) => {
   
   doc.text(`Nama Penyewa : ${booking.user.name}`);
   doc.text(`Email        : ${booking.user.email}`);
-  const statusColor = booking.status === "CONFIRMED" ? "#27ae60" : "#e74c3c";
+  const statusColor = booking.status === "CONFIRMED" ? "#000000" : "#000000";
   doc.fillColor(statusColor).text(`Status       : ${booking.status}`).fillColor("#000000");
 
   doc.text(`Kode Booking : ${booking.bookingCode}`, 350, startY + 25);
@@ -331,7 +331,7 @@ export const generateInvoicePDF = (doc: PDFKit.PDFDocument, booking: any) => {
  doc.moveTo(50, currentY + 10).lineTo(550, currentY + 10).stroke();
  doc.moveDown(2);
  
- doc.fontSize(14).fillColor("#d63031").text(
+ doc.fontSize(14).fillColor("#110202").text(
    `TOTAL PEMBAYARAN: Rp${booking.totalPrice.toLocaleString()}`, 
    { align: "right", bold: true }
  );

@@ -63,6 +63,7 @@ model Category {
   id    Int    @id @default(autoincrement())
   name  String
   items Item[]
+  isDeleted Boolean @default(false)
 }
 
 model Item {
@@ -76,6 +77,8 @@ model Item {
   category      Category?      @relation(fields: [categoryId], references: [id])
   bookingItems  BookingItem[]
   package_items PackageItem[]
+  isDeleted    Boolean        @default(false)
+
 }
 
 model Package {
@@ -87,6 +90,7 @@ model Package {
   discount_price Int
   package_items  PackageItem[]
   bookingItems   BookingItem[]
+  isDeleted Boolean @default(false)
 }
 
 model PackageItem {
@@ -120,6 +124,8 @@ model Booking {
   user              User          @relation(fields: [userId], references: [id])
   items             BookingItem[]
   payment           Payment?
+   offlineCustomerId   Int?
+  offlineCustomer     OfflineCustomer? @relation(fields: [offlineCustomerId], references: [id])
 }
 
 model BookingItem {
@@ -142,5 +148,11 @@ model Payment {
   paymentProof String
   status       PaymentStatus @default(PENDING)
   booking      Booking       @relation(fields: [bookingId], references: [id])
+}
+model OfflineCustomer {
+  id          Int      @id @default(autoincrement())
+  name        String
+  phoneNumber String
+  bookings    Booking[]
 }
 

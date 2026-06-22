@@ -47,7 +47,7 @@ export const midtransWebhookService =
         },
 
         data: {
-          status: "CONFIRMED"
+          status: "RENTED"
         }
       });
 
@@ -65,7 +65,7 @@ export const midtransWebhookService =
         create: {
           bookingId: booking.id,
           amount: booking.totalPrice,
-          paymentProof: "MIDTRANS",
+          paymentProof: payment_type,
           status: "VERIFIED"
         }
 

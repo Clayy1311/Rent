@@ -52,3 +52,19 @@ export const DeleteCategory = async (req: Request, res: Response) => {
     });
   }
 };
+
+export const UpdateCategory = async(req: Request, res: Response) => {
+  try{
+    const {name} = req.body;
+    const id = Number(req.params.id);
+    const data = await CategoryServices.UpdateCategoryService(id,name)
+    return res.status(200).json({
+      "success": "true",
+      "data": data
+    })
+  }catch(error: any){
+    return res.status(400).json({
+      "message": error.err
+    })
+  }
+}

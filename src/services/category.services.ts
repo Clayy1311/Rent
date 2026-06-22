@@ -6,6 +6,9 @@ export const getAllCategory = async() => {
     return await prisma.category.findMany({
         include: {
             items: true
+        },
+        where: {
+            isDeleted: false,
         }
     })
 }
@@ -34,6 +37,15 @@ export const CreateCategory = async(name: string) => {
     return await prisma.category.create({
         data: {
             name
+        }
+    })
+}
+
+export const UpdateCategoryService = async(id: number, name: string) => {
+    return await prisma.category.update({
+        where: {id},
+        data: {
+            name: name
         }
     })
 }

@@ -14,7 +14,18 @@ import { getRentController } from "../controllers/admin.controller";
 import { getStatusController } from "../controllers/admin.controller";
 import { getItemBestSellingController } from "../controllers/admin.controller";
 import { getAllUsers } from "../controllers/admin.controller";
+import { createAdminBookingController } from "../controllers/admin.controller";
 import { getTotalrevenueController } from "../controllers/admin.controller";
+import { GetAllTransaction } from "../controllers/admin.controller";
+import { ArchiveItem } from "../controllers/admin.controller";
+import { UnarchiveItem } from "../controllers/admin.controller";
+import { ArchivePackage } from "../controllers/admin.controller";
+import { UnarchivePackage } from "../controllers/admin.controller";
+import { ArchiveCategory } from "../controllers/admin.controller";
+import { UnarchiveCategory } from "../controllers/admin.controller";
+import { GetAllArchiveCategory } from "../controllers/admin.controller";
+import { GetAllArchiveItem } from "../controllers/admin.controller";
+import { GetAllArchivePackage } from "../controllers/admin.controller";
 const router = Router()
 router.patch("/bookings/:id/pickup", authMiddleware,adminMiddleware,handlePickUp);
 router.patch("/bookings/:id/return", authMiddleware,adminMiddleware,handleReturn);
@@ -29,7 +40,16 @@ router.get("/status", authMiddleware, adminMiddleware, getStatusController)
 router.get('/bestselling', authMiddleware, adminMiddleware,getItemBestSellingController)
 router.get("/users", authMiddleware, adminMiddleware, getAllUsers)
 router.get("/reports/donwload", authMiddleware, adminMiddleware, downloadExcelReport)
+router.post("/createbooking", authMiddleware,adminMiddleware, createAdminBookingController)
 router.get("/revenue-summary", authMiddleware,adminMiddleware,getTotalrevenueController)
-
-
+router.get("/transaction", authMiddleware,adminMiddleware,GetAllTransaction)
+router.patch("/item/archive/:id", authMiddleware, adminMiddleware, ArchiveItem)
+router.patch("/item/unarchive/:id", authMiddleware, adminMiddleware, UnarchiveItem)
+router.patch("/package/archive/:id",authMiddleware, adminMiddleware, ArchivePackage)
+router.patch("/package/unarchive/:id", authMiddleware, adminMiddleware, UnarchivePackage)
+router.patch("/category/archive/:id",authMiddleware, adminMiddleware,ArchiveCategory)
+router.patch("/category/unarchive/:id", authMiddleware, adminMiddleware, UnarchiveCategory)
+router.get("/item/archive", authMiddleware, adminMiddleware, GetAllArchiveItem)
+router.get("/package/archive", authMiddleware, adminMiddleware, GetAllArchivePackage)
+router.get("/category/archive", authMiddleware, adminMiddleware, GetAllArchiveCategory)
 export default router;

@@ -168,10 +168,16 @@ export const verifyEmail = async (req: Request, res: Response) => {
       where: { token: String(token) },
     });
 
-    if (!record) {
-      return res.status(400).json({ message: "Invalid token" });
+      if (!record) {
+      return res.redirect(
+        "http://localhost:3000/verify-email?status=failed"
+      );
     }
-    if (record.expiresAt < new Date()) {
+     if (record.expiresAt < new Date()) {
+      return res.redirect(
+        "http://localhost:3000/verify-email?status=failed"
+      );
+    }if (record.expiresAt < new Date()) {
       return res.status(400).json({ message: "Token expired" });
     }
     await prisma.user.update({
@@ -181,18 +187,18 @@ export const verifyEmail = async (req: Request, res: Response) => {
     await prisma.emailVerification.delete({
       where: { token: String(token) },
     });
-    return res.json({
-      message: "email registered success",
-    });
+ res.redirect(
+  "http://localhost:3000/verify-email?status=success"
+);
   } catch (error) {
     console.error(error);
-    return res.status(500).json({
-      message: "Internal server error",
-    });
+   res.redirect(
+  "http://localhost:3000/verify-email?status=failed"
+);
   }
 };
 
-export const login = async (req: Request, res: Response) => {
+export const login = async (req: Request, res: Response) => { 
   try {
     const { email, password } = req.body;
 

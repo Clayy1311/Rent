@@ -4,7 +4,11 @@ import { BookingStatus } from "@prisma/client"
 
 export const getAllItems = async () => {
 
-  return await prisma.item.findMany()
+  return await prisma.item.findMany({
+    where: {
+      isDeleted: false,
+    }
+  })
 
 }
 

@@ -8,7 +8,7 @@ export const getUserProfile = async (userId: number) => {
       name: true,
       email: true,
       role: true,
-      // Jangan return password ya!
+      
     },
   });
 };
