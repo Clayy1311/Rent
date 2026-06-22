@@ -32,7 +32,7 @@ export interface Category {
     min_capacity: number;
     max_capacity: number;
     originalPrice: number;
-    finalPrice: number;
+    final_price: number;
     package_items: PackageItem[];
   }
   

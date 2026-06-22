@@ -9,7 +9,7 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  initialData?: any; // Tambahkan prop ini
+  initialData?: any; 
 }
 
 export function CreateItemModal({ isOpen, onClose, onSuccess, initialData }: Props) {
@@ -26,6 +26,19 @@ export function CreateItemModal({ isOpen, onClose, onSuccess, initialData }: Pro
     image: null as File | null,
   });
 
+  // Helper untuk resolve URL Gambar dari backend local
+  const getImageUrl = (imageProperty: string) => {
+    if (!imageProperty) return null;
+    
+    // Jika data dari database sudah berupa full URL link
+    if (imageProperty.startsWith("http://") || imageProperty.startsWith("https://")) {
+      return imageProperty;
+    }
+    
+    // Jika hanya menyimpan nama filenya saja (e.g., "tenda-01.jpg")
+    return `http://localhost:3001/uploads/${encodeURIComponent(imageProperty)}`;
+  };
+
   // Sync data saat mode EDIT diaktifkan
   useEffect(() => {
     if (isOpen && initialData) {
@@ -35,9 +48,13 @@ export function CreateItemModal({ isOpen, onClose, onSuccess, initialData }: Pro
         price: initialData.price?.toString() || "",
         stock: initialData.stock?.toString() || "",
         categoryId: initialData.categoryId?.toString() || "",
-        image: null,
+        image: null, // Tetap null sebelum user memilih file baru
       });
-      setImagePreview(initialData.imageUrl || null);
+      
+      // Ambil properti gambar yang tersedia di objek data kamu
+      const existingImage = initialData.image || initialData.imageUrl;
+      setImagePreview(getImageUrl(existingImage));
+
     } else if (isOpen && !initialData) {
       // Reset form jika mode TAMBAH
       setFormData({ name: "", description: "", price: "", stock: "", categoryId: "", image: null });
@@ -76,7 +93,7 @@ export function CreateItemModal({ isOpen, onClose, onSuccess, initialData }: Pro
 
       const isEdit = !!initialData;
       const url = isEdit ? `/items/${initialData.id}` : "/items";
-      const method = isEdit ? "put" : "post"; // Gunakan PATCH untuk update
+      const method = isEdit ? "put" : "post"; // Silakan ganti ke "patch" jika backend-mu menggunakan PATCH untuk update
 
       await api({
         method,

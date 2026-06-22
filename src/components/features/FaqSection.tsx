@@ -27,7 +27,7 @@ const faqs = [
   },
   {
     question: "Bisa pesan lewat website tapi bayar di tempat (COD)?",
-    answer: "Untuk saat ini, sistem kami memprioritaskan pembayaran online agar stok barang langsung terkunci otomatis untuk kamu. Jadi pas datang tinggal angkut!",
+  answer: "Bisa. Kamu dapat mengecek ketersediaan alat terlebih dahulu melalui website, lalu datang langsung ke toko untuk melakukan pembayaran secara tunai (cash) dan mengambil barang yang telah dipesan."
   },
 ];
 

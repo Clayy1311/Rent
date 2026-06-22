@@ -1,41 +1,48 @@
-import { 
-  format, 
-  startOfWeek, 
-  endOfWeek, 
-  startOfMonth, 
-  endOfMonth, 
-  startOfYear, 
-  endOfYear 
+import {
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  startOfYear,
+  startOfDay,
+  endOfYear,
+  format,
+  endOfDay,
 } from "date-fns";
 
-
 export function DateFilterHelper(
-    type: "hari"|"minggu"|"bulan"|"tahun"
-){
-const hariIni = new Date();
-let fromDate: Date = hariIni;
-let toDate: Date = hariIni;
+  type: "hari" | "minggu" | "bulan" | "tahun"
+) {
+  const now = new Date();
 
-switch(type){
+  let fromDate: Date;
+  let toDate: Date;
+
+  switch (type) {
     case "hari":
-        fromDate = hariIni;
-        toDate = hariIni;
-        break;
+      fromDate = startOfDay(now);
+      toDate = endOfDay(now);
+      break;
 
     case "minggu":
-        fromDate = startOfWeek(hariIni,{weekStartsOn: 1});
-        toDate = endOfWeek(hariIni,{weekStartsOn: 1});
-        break;
+      fromDate = startOfWeek(now, { weekStartsOn: 1 });
+      toDate = endOfWeek(now, { weekStartsOn: 1 });
+      break;
 
     case "bulan":
-        fromDate =  startOfMonth(hariIni)
-        toDate = endOfMonth(hariIni);
-        break;
-     case "tahun":
-        fromDate = startOfYear(hariIni);
-        toDate = endOfYear(hariIni);
-}return {
+      fromDate = startOfMonth(now);
+      toDate = endOfMonth(now);
+      break;
+
+    case "tahun":
+      fromDate = startOfYear(now);
+      toDate = endOfYear(now);
+      break;
+  }
+
+  return {
+    // 🔥 FIX: kirim DATE DOANG (NO TIMEZONE, NO ISO)
     from: format(fromDate, "yyyy-MM-dd"),
     to: format(toDate, "yyyy-MM-dd"),
   };
-};
+}

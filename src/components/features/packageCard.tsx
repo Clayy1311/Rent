@@ -12,7 +12,7 @@ export function PackageCard({ pkg }: any) {
   const openAuth = useModalStore((state) => state.openAuth);
 
   const oriPrice = pkg.originalPrice || pkg.original_price || 0;
-  const finalPrice = pkg.finalPrice || pkg.final_price || 0;
+  const final_price = pkg.final_price || pkg.final_price || 0;
 
   const handleAction = () => {
     if (!token) {
@@ -28,7 +28,7 @@ export function PackageCard({ pkg }: any) {
       {/* Badge */}
       <div className="mb-4">
         <span className="bg-emerald-100 text-emerald-700 text-[11px] font-medium px-3 py-1 rounded-full">
-          Hemat Rp {(oriPrice - finalPrice).toLocaleString("id-ID")}
+          Hemat Rp {(oriPrice - final_price).toLocaleString("id-ID")}
         </span>
       </div>
 
@@ -67,7 +67,7 @@ export function PackageCard({ pkg }: any) {
 
           <div className="flex items-end gap-2">
             <span className="text-2xl font-semibold text-slate-900">
-              Rp {finalPrice.toLocaleString("id-ID")}
+              Rp {final_price.toLocaleString("id-ID")}
             </span>
             <span className="text-xs text-slate-400 mb-1">/ paket</span>
           </div>

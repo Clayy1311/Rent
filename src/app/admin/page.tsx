@@ -23,22 +23,12 @@ export default function AdminDashboard() {
       {/* 🔥 DOWNLOAD REPORT SECTION */}
       <div className="bg-white border border-slate-200 rounded-2xl p-5 p-7  shadow-sm gap">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900">
-              Download Laporan Pendapatan
-            </h2>
-            <p className="text-sm text-slate-500">
-              Pilih periode waktu lalu unduh laporan dalam format Excel.
-            </p>
-          </div>
+        
         </div>
-        <br />
+        
         {/* 🔥 KPI CARDS */}
         <CardchartPage />
-        <div className="py-8">
-          {/* 🔽 FILTER + DOWNLOAD */}
-          <TestApiPage />
-        </div>
+        
       </div>
 
       {/* 📈 CHART ROW 1 */}

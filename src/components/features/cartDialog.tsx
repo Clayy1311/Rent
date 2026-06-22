@@ -58,6 +58,10 @@ export function CartDialog() {
     from: new Date(),
     to: new Date(new Date().setDate(new Date().getDate() + 1)),
   });
+  const getImageUrl = (fileName: string) => {
+  if (!fileName) return "https://via.placeholder.com/300";
+  return `http://localhost:3001/uploads/${encodeURIComponent(fileName)}`;
+};
 
   const calculateDays = () => {
     if (!date?.from || !date?.to) return 1;
@@ -351,54 +355,65 @@ export function CartDialog() {
               {/* RENDER ITEM SATUAN (Jika ada) */}
               {cart.map((item) => (
                 <div
-                  key={item.id}
-                  className="flex gap-4 items-center bg-slate-800 p-3 rounded-2xl border border-slate-700"
-                >
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-bold text-xs text-white truncate">
-                      {item.name}
-                    </h4>
-                    <p className="text-[10px] text-slate-500">
-                      {validDays} Hari x Rp {item.price.toLocaleString("id-ID")}
-                    </p>
-                    <p className="text-sm text-primary font-black">
-                      Rp{" "}
-                      {(item.price * item.quantity * validDays).toLocaleString(
-                        "id-ID",
-                      )}
-                    </p>
-                  </div>
+  key={item.id}
+  className="flex gap-4 items-center bg-slate-800 p-3 rounded-2xl border border-slate-700"
+>
+  {/* Image */}
+  <div className="w-20 h-20 rounded-xl overflow-hidden bg-slate-700 shrink-0">
+    <img
+      src={getImageUrl(item.image)}
+      alt={item.name}
+      className="w-full h-full object-cover"
+    />
+  </div>
 
-                  <div className="flex items-center gap-3 bg-slate-950 px-2 py-1 rounded-full border border-slate-800">
-                    <button
-                      onClick={() => updateQuantity(item.id, "minus")}
-                      disabled={item.quantity <= 1 || loading}
-                      className="text-slate-400 hover:text-white disabled:opacity-30"
-                    >
-                      <Minus size={12} />
-                    </button>
+  {/* Info */}
+  <div className="flex-1 min-w-0">
+    <h4 className="font-bold text-xs text-white truncate">
+      {item.name}
+    </h4>
 
-                    <span className="text-xs font-bold text-white">
-                      {item.quantity}
-                    </span>
+    <p className="text-[10px] text-slate-400">
+      {validDays} Hari × Rp {item.price.toLocaleString("id-ID")}
+    </p>
 
-                    <button
-                      onClick={() => updateQuantity(item.id, "plus")}
-                      disabled={loading}
-                      className="text-slate-400 hover:text-white"
-                    >
-                      <Plus size={12} />
-                    </button>
-                  </div>
+    <p className="text-sm text-primary font-black">
+      Rp {(item.price * item.quantity * validDays).toLocaleString("id-ID")}
+    </p>
+  </div>
 
-                  <button
-                    onClick={() => removeFromCart(item.id)}
-                    disabled={loading}
-                    className="text-slate-600 hover:text-red-400"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
+  {/* Quantity */}
+  <div className="flex items-center gap-3 bg-slate-950 px-2 py-1 rounded-full border border-slate-800">
+    <button
+      onClick={() => updateQuantity(item.id, "minus")}
+      disabled={item.quantity <= 1 || loading}
+      className="text-slate-400 hover:text-white disabled:opacity-30"
+    >
+      <Minus size={12} />
+    </button>
+
+    <span className="text-xs font-bold text-white">
+      {item.quantity}
+    </span>
+
+    <button
+      onClick={() => updateQuantity(item.id, "plus")}
+      disabled={loading}
+      className="text-slate-400 hover:text-white"
+    >
+      <Plus size={12} />
+    </button>
+  </div>
+
+  {/* Delete */}
+  <button
+    onClick={() => removeFromCart(item.id)}
+    disabled={loading}
+    className="text-slate-600 hover:text-red-400"
+  >
+    <Trash2 className="h-4 w-4" />
+  </button>
+</div>
               ))}
             </div>
           )}

@@ -84,25 +84,7 @@ export function DetailBookingModal({ isOpen, onClose, data }: Props) {
           </div>
 
           {/* Section 3: Info Pembayaran */}
-          <div className="bg-slate-950 rounded-[24px] p-6 text-white flex justify-between items-center">
-            <div>
-              <div className="flex items-center gap-2 text-slate-400 font-bold text-[10px] uppercase mb-1">
-                <CreditCard size={14} /> Total Pembayaran
-              </div>
-              <p className="text-2xl font-black text-emerald-400">
-                Rp {data.totalPrice?.toLocaleString("id-ID")}
-              </p>
-            </div>
-            {data.payment?.paymentProof && (
-              <a 
-                href={`http://localhost:3001/${data.payment.paymentProof.replace(/\\/g, '/')}`}
-                target="_blank"
-                className="flex items-center gap-2 bg-white/10 hover:bg-white/20 transition-all px-4 py-2 rounded-xl text-xs font-bold"
-              >
-                <ExternalLink size={14} /> Bukti Transfer
-              </a>
-            )}
-          </div>
+        
         </div>
       </DialogContent>
     </Dialog>

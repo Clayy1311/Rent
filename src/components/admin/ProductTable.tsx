@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import api from "@/lib/axios";
-import { Edit3, Trash2, Loader2 } from "lucide-react";
+import { Edit3, Trash2, Loader2, Archive } from "lucide-react";
 
 interface Props {
   onEdit: (item: any) => void;
@@ -89,7 +89,7 @@ export function ProductTable({ onEdit, onDelete }: Props) {
                   onClick={() => onDelete(item.id)}
                   className="p-2.5 bg-slate-50 text-slate-400 hover:text-red-600 rounded-xl transition-all"
                 >
-                  <Trash2 size={16} />
+                  <Archive size={16} />
                 </button>
 
               </div>

@@ -39,8 +39,25 @@ export function CreatePackageModal({ isOpen, onClose, onSuccess, initialData }: 
     { itemId: "", quantity: 1 }
   ]);
 
+  // 1. Ambil list master item alat saat modal terbuka
   useEffect(() => {
-    if (isOpen && initialData) {
+    if (isOpen) {
+      const fetchItems = async () => {
+        try {
+          const res = await api.get("/items");
+          const itemsData = res.data.data || res.data || [];
+          setAvailableItems(itemsData);
+        } catch (err) {
+          console.error("Gagal ambil list item", err);
+        }
+      };
+      fetchItems();
+    }
+  }, [isOpen]);
+
+  // 2. Sinkronisasi Data Saat Klik Edit (Menunggu availableItems ter-load)
+  useEffect(() => {
+    if (isOpen && initialData && availableItems.length > 0) {
       setFormData({
         package_name: initialData.package_name || "",
         description: initialData.description || "",
@@ -48,17 +65,23 @@ export function CreatePackageModal({ isOpen, onClose, onSuccess, initialData }: 
         max_capacity: initialData.max_capacity?.toString() || "",
         discount_price: initialData.discount_price?.toString() || "",
       });
-      if (initialData.package_items && initialData.package_items.length > 0) {
+
+      // Ambil array relasi dari JSON backend kamu: "package_items"
+      const rawItems = initialData.package_items;
+
+      if (rawItems && rawItems.length > 0) {
         setSelectedItems(
-          initialData.package_items.map((item: any) => ({
-            itemId: item.itemId?.toString() || "",
-            quantity: item.quantity || 1
+          rawItems.map((item: any) => ({
+            // FIX: Menggunakan item_id sesuai payload JSON backend-mu
+            itemId: item.item_id !== undefined && item.item_id !== null ? String(item.item_id) : "",
+            quantity: item.quantity ? Number(item.quantity) : 1
           }))
         );
       } else {
         setSelectedItems([{ itemId: "", quantity: 1 }]);
       }
     } else if (isOpen && !initialData) {
+      // Reset state jika klik tambah paket baru
       setFormData({
         package_name: "",
         description: "",
@@ -68,21 +91,7 @@ export function CreatePackageModal({ isOpen, onClose, onSuccess, initialData }: 
       });
       setSelectedItems([{ itemId: "", quantity: 1 }]);
     }
-  }, [isOpen, initialData]);
-
-  useEffect(() => {
-    if (isOpen) {
-      const fetchItems = async () => {
-        try {
-          const res = await api.get("/items");
-          setAvailableItems(res.data.data || []);
-        } catch (err) {
-          console.error("Gagal ambil item", err);
-        }
-      };
-      fetchItems();
-    }
-  }, [isOpen]);
+  }, [isOpen, initialData, availableItems]);
 
   if (!isOpen) return null;
 
@@ -110,6 +119,7 @@ export function CreatePackageModal({ isOpen, onClose, onSuccess, initialData }: 
 
     setLoading(true);
     try {
+      // Menyiapkan format payload yang dikirim balik ke backend
       const payload = {
         ...formData,
         min_capacity: Number(formData.min_capacity),
@@ -141,7 +151,7 @@ export function CreatePackageModal({ isOpen, onClose, onSuccess, initialData }: 
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/40 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="bg-white w-full max-w-lg rounded-[35px] overflow-hidden shadow-2xl animate-in zoom-in-95 border border-slate-100 flex flex-col max-h-[90vh]">
+      <div className="bg-white w-full max-w-lg rounded-[35px] overflow-hidden shadow-2xl border border-slate-100 flex flex-col max-h-[90vh]">
         
         <div className="px-6 py-5 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
           <h2 className="text-lg font-black uppercase italic tracking-tighter text-slate-950">
@@ -150,7 +160,7 @@ export function CreatePackageModal({ isOpen, onClose, onSuccess, initialData }: 
           <button onClick={onClose} className="text-slate-400 hover:text-slate-900"><X size={20} /></button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto custom-scrollbar">
+        <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto">
           
           <div className="space-y-3">
             <div className="space-y-1">
@@ -185,6 +195,7 @@ export function CreatePackageModal({ isOpen, onClose, onSuccess, initialData }: 
             </div>
           </div>
 
+          {/* INCLUDED ITEMS SECTION */}
           <div className="space-y-3 border-t border-slate-50 pt-4">
             <div className="flex justify-between items-center px-1">
               <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Included Items</label>
@@ -204,19 +215,23 @@ export function CreatePackageModal({ isOpen, onClose, onSuccess, initialData }: 
                     <select 
                       required
                       className="w-full pl-4 pr-10 py-3 bg-slate-50 rounded-xl font-bold text-[12px] outline-none appearance-none focus:ring-2 focus:ring-blue-600/10 cursor-pointer"
-                      value={item.itemId}
+                      value={String(item.itemId)}
                       onChange={(e) => updateItem(index, "itemId", e.target.value)}
                     >
                       <option value="">Pilih Alat</option>
                       {availableItems.map((opt) => (
-                        <option key={opt.id} value={opt.id}>{opt.name.toUpperCase()}</option>
+                        <option key={opt.id} value={String(opt.id)}>
+                          {opt.name.toUpperCase()}
+                        </option>
                       ))}
                     </select>
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
                   </div>
                   
                   <input 
+                    required
                     type="number" 
+                    min="1"
                     className="w-16 px-2 py-3 bg-slate-50 rounded-xl font-bold text-sm text-center outline-none"
                     placeholder="Qty"
                     value={item.quantity}

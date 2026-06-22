@@ -26,14 +26,12 @@ type StatusData = {
 
 // Konfigurasi status & label (Termasuk handling typo backend CONFRIMED)
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  CONFIRMED: { label: "confirm ", color: "#3b82f6" }, 
   RENTED: { label: "Disewa", color: "#22c55e" },
   FINISHED: { label: "Selesai", color: "#f59e0b" },
-  CANCELED: { label: "Cancel", color: "#ef4444" },
-  EXPIRED: { label: "exp", color: "#a855f7" }, 
+ 
 };
 
-const COLORS = ["#3b82f6", "#22c55e", "#f59e0b", "#ef4444", "#a855f7"];
+const COLORS = ["#22c55e", "#f59e0b", ];
 
 export default function StatusChart() {
   const [data, setData] = useState<StatusData[]>([]);

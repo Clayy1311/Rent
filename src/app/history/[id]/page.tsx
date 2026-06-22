@@ -236,7 +236,7 @@ export default function BookingDetailPage() {
       </div>
     )}
 
-    {booking.status === "CONFIRMED" && (
+    {booking.status === "RENTED" && (
       <button 
         onClick={() => handleDownloadInvoice(bookingId)} // Atau arahkan ke endpoint PDF invoice
         className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-emerald-900/40 flex items-center justify-center gap-2 group"

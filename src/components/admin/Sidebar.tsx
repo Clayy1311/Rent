@@ -11,7 +11,8 @@ import {
   Users, 
   LogOut,
   Mountain,
-  Settings
+  Settings,
+  FileText
 } from "lucide-react";
 import { cn } from "../../../lib/utils";
 
@@ -23,9 +24,11 @@ export function Sidebar({ mounted, user, token, logout }: any) {
     { name: "Dashboard", href: "/admin", icon: <LayoutDashboard size={20} /> },
     { name: "Semua Pesanan", href: "/admin/allBooking", icon: <ClipboardList size={20} /> },
     { name: "Produk & Paket", href: "/admin/products", icon: <Package size={20} /> },
+    {name: "Laporan Pendaptan", href: "/admin/report-revenue", icon: <FileText size={20} />},
     { name: "Kategori", href: "/admin/category", icon: <Layers size={20} /> },
-    { name: "PickUp & Return", href: "/admin/pickupreturn", icon: <ArrowLeftRight size={20} /> },
+    { name: "Barang Disewa", href: "/admin/pickupreturn", icon: <ArrowLeftRight size={20} /> },
     { name: "Pelanggan", href: "/admin/users", icon: <Users size={20} /> },
+    { name: "Booking Item", href: "/admin/booking", icon: <Layers size={20} />},
   ];
 
   return (

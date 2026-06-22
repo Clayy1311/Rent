@@ -8,7 +8,7 @@ import {
   Eye, 
   Loader2, 
   Search, 
-  RefreshCcw, 
+  RefreshCw, 
   ChevronLeft, 
   ChevronRight,
   Download,
@@ -69,6 +69,7 @@ export default function AdminAllBookingsPage() {
       setDownloadLoading(false);
     }
   };
+  console.log(data)
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-10">
@@ -86,6 +87,17 @@ export default function AdminAllBookingsPage() {
         {/* CUSTOM REPORT DOWNLOADER */}
         
       </div>
+       <div className="flex gap-3 items-center self-start sm:self-auto">
+         
+
+          <button
+            onClick={refresh}
+            disabled={loading}
+            className="bg-slate-950 hover:bg-blue-600 text-white px-6 py-3.5 rounded-2xl text-[10px] font-black uppercase italic tracking-widest transition-all shadow-xl flex items-center gap-2 disabled:opacity-50"
+          >
+            <RefreshCw size={12} className={`inline ${loading ? 'animate-spin' : ''}`} /> Refresh Data
+          </button>
+        </div>
 
       {/* FILTER BAR */}
       <div className="flex flex-col md:flex-row gap-4 items-center">
@@ -116,13 +128,7 @@ export default function AdminAllBookingsPage() {
       SEMUA STATUS
     </SelectItem>
     
-    <SelectItem 
-      value="CONFIRMED" 
-      className="py-3 px-4 rounded-xl cursor-pointer focus:bg-blue-50 focus:text-blue-600 font-black italic transition-colors"
-    >
-      CONFIRMED
-    </SelectItem>
-
+  
     <SelectItem 
       value="RENTED" 
       className="py-3 px-4 rounded-xl cursor-pointer focus:bg-blue-50 focus:text-blue-600 font-black italic transition-colors"
@@ -137,12 +143,7 @@ export default function AdminAllBookingsPage() {
       FINISHED
     </SelectItem>
    
-    <SelectItem 
-      value="EXPIRED" 
-      className="py-3 px-4 rounded-xl cursor-pointer focus:bg-blue-50 focus:text-blue-600 font-black italic transition-colors"
-    >
-      EXPIRED
-    </SelectItem>
+    
   </SelectContent>
 </Select>
       </div>
@@ -156,7 +157,7 @@ export default function AdminAllBookingsPage() {
                 <th className="px-10 py-7">Pelanggan</th>
                 <th className="px-10 py-7">Invoice</th>
                 <th className="px-10 py-7 text-center">Status</th>
-                <th className="px-10 py-7">Total Harga</th>
+                <th className="px-10 py-7">Total bayar</th>
                 <th className="px-10 py-7 text-center">Tindakan</th>
               </tr>
             </thead>
@@ -200,7 +201,7 @@ export default function AdminAllBookingsPage() {
                     </td>
                     <td className="px-10 py-7">
                       <div className="font-black text-slate-950 text-lg italic tracking-tighter">
-                        Rp {item.totalPrice?.toLocaleString("id-ID")}
+                        Rp {item.totalBayar?.toLocaleString("id-ID")}
                       </div>
                     </td>
                     <td className="px-10 py-7">

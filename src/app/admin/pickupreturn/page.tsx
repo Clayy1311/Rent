@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import {
-  PackageCheck,
   History,
   RefreshCw,
   AlertCircle,
@@ -10,36 +9,31 @@ import {
   Eye,
   Search,
   Calendar,
-  DollarSign,
   Tag,
-  X
+  X,
 } from "lucide-react";
 import api from "@/lib/axios";
 import { toast } from "sonner";
 import { cn } from "../../../../lib/utils";
 
-type BookingStatus = "CONFIRMED" | "RENTED";
-
 export default function BookingActionPage() {
-  const [activeTab, setActiveTab] = useState<BookingStatus>("CONFIRMED");
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
   const [search, setSearch] = useState("");
   const [debounceSearch, setDebounceSearch] = useState("");
 
-  // MODAL ITEM
-  const [selectedItems, setSelectedItems] = useState<any[] | null>(null);
+  const [selectedBooking, setSelectedBooking] = useState<any | null>(null);
 
-  // MODAL DENDA
   const [penaltyData, setPenaltyData] = useState<{
     show: boolean;
     amount: number;
     code: string;
+    lateDays: number;
     isLate: boolean;
   } | null>(null);
 
-  // EFFECT PERTAMA: Mengurusi Debounce pada Input Search
+  // debounce search
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebounceSearch(search);
@@ -48,13 +42,16 @@ export default function BookingActionPage() {
     return () => clearTimeout(handler);
   }, [search]);
 
-  // EFFECT KEDUA: Hit API jika Tab berubah, data di-refresh, atau hasil Debounce Search berubah
+  // fetch ONLY RETURN data
   useEffect(() => {
     const fetchBookings = async () => {
       try {
         setLoading(true);
-        const res = await api.get(`/admin/allBookings?status=${activeTab}&search=${debounceSearch}`);
+        const res = await api.get(
+          `/admin/allBookings?status=RENTED&search=${debounceSearch}`,
+        );
         setBookings(res.data.bookings || []);
+        console.log(res);
       } catch (err) {
         toast.error("Gagal mengambil data booking");
       } finally {
@@ -63,19 +60,14 @@ export default function BookingActionPage() {
     };
 
     fetchBookings();
-  }, [activeTab, refreshKey, debounceSearch]);
+  }, [refreshKey, debounceSearch]);
 
-  const handleAction = async (id: number, currentStatus: BookingStatus) => {
-    const isPickup = currentStatus === "CONFIRMED";
-
-    if (!confirm(`Konfirmasi untuk ID #${id}?`)) return;
+  // ONLY RETURN ACTION
+  const handleReturn = async (id: number) => {
+    if (!confirm(`Konfirmasi return untuk ID #${id}?`)) return;
 
     try {
-      const endpoint = isPickup
-        ? `/admin/bookings/${id}/pickup`
-        : `/admin/bookings/${id}/return`;
-
-      const res = await api.patch(endpoint);
+      const res = await api.patch(`/admin/bookings/${id}/return`);
 
       const penalty =
         res.data.data?.booking?.penaltyAmount ||
@@ -84,71 +76,51 @@ export default function BookingActionPage() {
 
       const bCode = res.data.data?.booking?.bookingCode || `ID #${id}`;
 
-      if (!isPickup) {
-        setPenaltyData({
-          show: true,
-          amount: penalty,
-          code: bCode,
-          isLate: penalty > 0,
-        });
-      } else {
-        toast.success("Pickup berhasil!");
-      }
+      const lateDays = res.data.data?.booking?.lateDays;
+
+      const isLate = res.data.data?.isLate ?? penalty > 0;
+
+      setPenaltyData({
+        show: true,
+        amount: penalty,
+        code: bCode,
+        isLate,
+        lateDays, // 🔥 INI WAJIB
+      });
 
       setRefreshKey((prev) => prev + 1);
     } catch (err) {
-      toast.error("Gagal memproses");
+      toast.error("Gagal memproses return");
     }
   };
 
   return (
     <div className="space-y-8 pb-20 animate-in fade-in duration-500">
-      {/* HEADER SECTION */}
+      {/* HEADER */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-4xl font-black uppercase italic tracking-tight text-slate-950">
-            Operasional{" "}
-            <span className="text-blue-600">
-              {activeTab === "CONFIRMED" ? "Pickup" : "Return"}
-            </span>
+            Operasional <span className="text-blue-600">Return</span>
           </h1>
           <p className="text-slate-500 font-medium italic">
-            {activeTab === "CONFIRMED" 
-              ? "Proses penyerahan alat outdoor kepada pelanggan." 
-              : "Proses pengembalian dan pengecekan denda unit alat."}
+            Proses pengembalian dan pengecekan denda unit alat.
           </p>
-        </div>
-
-        {/* TABS CONTROLLER */}
-        <div className="flex p-1.5 bg-slate-100 w-fit rounded-2xl border border-slate-200/40 self-start sm:self-auto">
-          <TabButton
-            active={activeTab === "CONFIRMED"}
-            onClick={() => setActiveTab("CONFIRMED")}
-            icon={<PackageCheck size={14} />}
-            label="Pickup"
-          />
-          <TabButton
-            active={activeTab === "RENTED"}
-            onClick={() => setActiveTab("RENTED")}
-            icon={<History size={14} />}
-            label="Return"
-          />
         </div>
       </div>
 
-      {/* SEARCH BAR SECTION */}
-      <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex items-center gap-3 group focus-within:border-blue-600/50 transition-all">
-        <Search size={18} className="text-slate-400 group-focus-within:text-blue-600 transition-colors" />
+      {/* SEARCH */}
+      <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex items-center gap-3">
+        <Search size={18} className="text-slate-400" />
         <input
           type="text"
-          placeholder="CARI NAMA / KODE BOOKING UNIT..."
+          placeholder="CARI NAMA / KODE BOOKING..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full outline-none text-xs font-bold uppercase tracking-wider text-slate-800 placeholder:text-slate-300"
+          className="w-full outline-none text-xs font-bold uppercase tracking-wider text-slate-800"
         />
       </div>
 
-      {/* TABLE SECTION */}
+      {/* TABLE */}
       <div className="bg-white border border-slate-100 rounded-[40px] overflow-hidden shadow-sm min-h-[300px]">
         {loading ? (
           <div className="h-[300px] flex items-center justify-center">
@@ -157,81 +129,118 @@ export default function BookingActionPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-slate-400 uppercase text-[10px] font-bold tracking-widest border-b border-slate-100">
+              <thead className="bg-slate-50 text-slate-400 uppercase text-[10px] font-bold tracking-widest border-b">
                 <tr>
                   <th className="px-8 py-5">Penyewa / Kode</th>
-                  <th className="px-8 py-5">Jadwal Rental</th>
-                  <th className="px-8 py-5">Item Unit</th>
-                  <th className="px-8 py-5">Total Bayar</th>
-                  <th className="px-8 py-5 text-center">Aksi Operasional</th>
+                  <th className="px-8 py-5">Jadwal</th>
+                  <th className="px-8 py-5">Item</th>
+                  <th className="px-8 py-5">Total</th>
+                  <th className="px-8 py-5 text-center">Aksi</th>
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-slate-50">
+              <tbody className="divide-y divide-slate-100">
                 {bookings.length > 0 ? (
-                  bookings.map((booking: any) => (
-                    <tr key={booking.id} className="group hover:bg-slate-50/50 transition-colors">
-                      {/* USER & CODE */}
-                      <td className="px-8 py-5">
-                        <div className="space-y-1">
-                          <div className="font-black text-slate-900 uppercase italic tracking-tighter text-base">
+                  bookings.map((booking: any) => {
+                    const now = new Date();
+                    const endDate = new Date(booking.endDate);
+
+                    // biar sampai akhir hari
+                    endDate.setHours(23, 59, 59, 999);
+
+                    // selisih waktu
+                    const diffTime = now.getTime() - endDate.getTime();
+                    const lateDays = Math.ceil(
+                      diffTime / (1000 * 60 * 60 * 24),
+                    );
+
+                    const isLate = lateDays > 0;
+                    const isWarning = lateDays > 0 && lateDays <= 2;
+                    const isDanger = lateDays >= 3;
+                    return (
+                      <tr
+                        key={booking.id}
+                        className="hover:bg-slate-50 transition-all"
+                      >
+                        {/* USER */}
+                        <td className="px-6 py-5">
+                          <div className="font-black uppercase text-slate-800">
                             {booking.user?.name}
                           </div>
-                          <div className="font-mono text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded w-fit border border-blue-100/50">
+                          <div className="text-[11px] text-blue-600 font-mono">
                             #{booking.bookingCode}
                           </div>
-                        </div>
-                      </td>
+                        </td>
 
-                      {/* SCHEDULE */}
-                      <td className="px-8 py-5 font-medium text-slate-600">
-                        <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
-                          <Calendar size={14} className="text-slate-300" />
-                          <span>
-                            {new Date(booking.startDate).toLocaleDateString("id-ID")} -{" "}
-                            {new Date(booking.endDate).toLocaleDateString("id-ID")}
-                          </span>
-                        </div>
-                      </td>
+                        {/* SCHEDULE */}
+                        <td className="px-6 py-5 text-xs text-slate-600 font-medium">
+                          <div className="flex items-center gap-2">
+                            <Calendar size={14} className="text-slate-400" />
+                            {new Date(booking.startDate).toLocaleDateString(
+                              "id-ID",
+                            )}{" "}
+                            -{" "}
+                            {new Date(booking.endDate).toLocaleDateString(
+                              "id-ID",
+                            )}
+                          </div>
 
-                      {/* ITEM LINK BUTTON */}
-                      <td className="px-8 py-5">
-                        <button
-                          onClick={() => setSelectedItems(booking.items || [])}
-                          className="flex items-center gap-2 bg-slate-50 border border-slate-200/60 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 text-slate-700 px-4 py-2 rounded-xl text-xs font-black uppercase italic tracking-wider transition-all shadow-sm"
-                        >
-                          <Eye size={14} />
-                          Detail Item
-                        </button>
-                      </td>
+                          {/* 🔥 STATUS BADGE */}
+                          <div className="mt-2">
+                            {lateDays <= 0 ? (
+                              <span className="px-2 py-1 text-[10px] font-black rounded-lg bg-green-100 text-green-600">
+                                ON TIME
+                              </span>
+                            ) : isWarning ? (
+                              <span className="px-2 py-1 text-[10px] font-black rounded-lg bg-yellow-100 text-yellow-600">
+                                TERLAMBAT {lateDays} HARI (WARNING)
+                              </span>
+                            ) : (
+                              <span className="px-2 py-1 text-[10px] font-black rounded-lg bg-red-100 text-red-600">
+                                TERLAMBAT {lateDays} HARI (DANGER)
+                              </span>
+                            )}
+                          </div>
+                        </td>
 
-                      {/* TOTAL PRICE */}
-                      <td className="px-8 py-5">
-                        <div className="flex items-center gap-1 text-slate-900 font-mono font-black text-base">
-                          <span className="text-xs text-slate-400 font-normal">Rp</span>
-                          {booking.totalPrice?.toLocaleString("id-ID")}
-                        </div>
-                      </td>
-
-                      {/* ACTION CONTROLLER */}
-                      <td className="px-8 py-5">
-                        <div className="flex justify-center">
+                        {/* ITEMS */}
+                        {/* ITEMS */}
+                        <td className="px-6 py-5">
                           <button
-                            onClick={() => handleAction(booking.id, activeTab)}
-                            className="bg-slate-950 hover:bg-blue-600 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase italic tracking-widest transition-all shadow-md"
+                            onClick={() =>
+                              setSelectedBooking(booking)
+                            } /* 🔥 Sekarang mengoper seluruh object booking */
+                            className="flex items-center gap-1 text-[11px] font-black uppercase bg-slate-100 px-3 py-2 rounded-xl hover:bg-slate-200 transition"
                           >
-                            {activeTab === "CONFIRMED" ? "Proses Pickup" : "Proses Return"}
+                            <Eye size={14} />
+                            Detail
                           </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                        </td>
+
+                        {/* TOTAL */}
+                        <td className="px-6 py-5 font-black text-slate-800 text-right">
+                          Rp {booking.totalPrice?.toLocaleString("id-ID")}
+                        </td>
+
+                        {/* ACTION */}
+                        <td className="px-6 py-5 text-center">
+                          <button
+                            onClick={() => handleReturn(booking.id)}
+                            className="bg-slate-950 hover:bg-slate-800 text-white px-5 py-2 rounded-xl text-[11px] font-black uppercase transition"
+                          >
+                            Proses Return
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
                 ) : (
-                  /* EMPTY STATE MATCH */
                   <tr>
-                    <td colSpan={5} className="px-8 py-20 text-center text-slate-400 font-bold italic uppercase text-xs tracking-widest">
-                      <PackageCheck className="mx-auto mb-3 opacity-20" size={40} />
-                      Tidak ada antrean data operasional.
+                    <td
+                      colSpan={5}
+                      className="text-center py-20 text-slate-400"
+                    >
+                      Tidak ada data booking
                     </td>
                   </tr>
                 )}
@@ -241,132 +250,156 @@ export default function BookingActionPage() {
         )}
       </div>
 
-      {/* MODAL DETAIL ITEM */}
-      {selectedItems && (
-        <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
+      {/* MODAL ITEM */}
+      {/* MODAL ITEM */}
+      {selectedBooking && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 p-4 animate-fade-in">
+          {/* 1. BACKDROP OVERLAY DENGAN BLUR (GLASSMORPHISM) */}
           <div
-            className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200"
-            onClick={() => setSelectedItems(null)}
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-all"
+            onClick={() => setSelectedBooking(null)}
           />
 
-          <div className="bg-white rounded-[40px] border border-slate-100 p-8 w-full max-w-md z-10 shadow-2xl relative space-y-6 animate-in zoom-in-95 duration-200">
-            <button 
-              onClick={() => setSelectedItems(null)}
-              className="absolute top-6 right-6 p-2 text-slate-300 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 rounded-xl transition-all"
-            >
-              <X size={16} />
-            </button>
-
-            <div>
-              <h2 className="text-2xl font-black uppercase italic text-slate-950 tracking-tight">
-                Daftar <span className="text-blue-600">Unit Sewa</span>
-              </h2>
-              <p className="text-xs text-slate-400 font-medium italic mt-0.5">Daftar item alat perlengkapan yang diambil.</p>
-            </div>
-
-            <div className="max-h-[300px] overflow-y-auto space-y-3 pr-1">
-              {selectedItems.length === 0 ? (
-                <p className="text-sm font-bold text-center py-6 text-slate-400 italic uppercase">Tidak ada item unit</p>
-              ) : (
-                selectedItems.map((item: any, i: number) => (
-                  <div key={i} className="group flex items-center justify-between border border-slate-100 bg-slate-50/50 p-4 rounded-2xl hover:border-blue-200 hover:bg-blue-50/30 transition-all">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-all shadow-sm">
-                        <Tag size={14} />
-                      </div>
-                      <p className="font-black text-slate-900 uppercase italic tracking-tight text-sm">
-                        {item.item?.name}
-                      </p>
-                    </div>
-                    <span className="font-mono text-xs font-black bg-slate-950 text-white px-2.5 py-1 rounded-lg">
-                      QTY: {item.quantity}
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <button
-              onClick={() => setSelectedItems(null)}
-              className="w-full bg-slate-950 hover:bg-blue-600 text-white py-4 rounded-2xl text-[10px] font-black uppercase italic tracking-widest transition-all shadow-xl"
-            >
-              Selesai Cek
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL DENDA PENGEMBALIAN */}
-      {penaltyData?.show && (
-        <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" />
-
-          <div className="bg-white p-8 rounded-[40px] border border-slate-100 text-center max-w-sm w-full z-10 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200">
-            {penaltyData.isLate ? (
-              <div className="space-y-4">
-                <div className="mx-auto w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center text-red-500 border border-red-100">
-                  <AlertCircle size={32} />
-                </div>
-                <div className="space-y-1">
-                  <h3 className="text-xl font-black uppercase italic text-red-600 tracking-tight">Terlambat Kembali!</h3>
-                  <p className="text-xs font-mono font-bold text-slate-400">KODE: {penaltyData.code}</p>
-                </div>
-                <div className="bg-red-50/50 border border-red-100 rounded-2xl p-4 font-mono font-black text-2xl text-red-700 flex items-center justify-center gap-1">
-                  <span className="text-xs font-normal text-red-400">Rp</span>
-                  {penaltyData.amount.toLocaleString("id-ID")}
-                </div>
+          {/* 2. MAIN MODAL CONTAINER */}
+          <div className="bg-white p-6 rounded-[32px] z-10 w-full max-w-md shadow-2xl border border-slate-100 flex flex-col gap-4 relative overflow-hidden">
+            {/* HEADER MODAL */}
+            <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                  Detail Pelanggan & Item
+                </span>
+                <h2 className="font-black text-xl uppercase tracking-wide text-slate-950 italic">
+                  Daftar Item ({(selectedBooking.items || []).length})
+                </h2>
               </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="mx-auto w-16 h-16 bg-green-50 rounded-2xl flex items-center justify-center text-green-500 border border-green-100">
-                  <CheckCircle2 size={32} />
-                </div>
-                <div className="space-y-1">
-                  <h3 className="text-xl font-black uppercase italic text-green-600 tracking-tight">Aman Bersih!</h3>
-                  <p className="text-xs font-mono font-bold text-slate-400">KODE: {penaltyData.code}</p>
-                </div>
-                <p className="text-xs font-bold uppercase italic text-slate-500 bg-slate-50 py-3 rounded-2xl border border-slate-100">
-                  Unit kembali tepat waktu & tanpa denda.
+
+              {/* Tombol Close Lingkaran Minimalis */}
+              <button
+                onClick={() => setSelectedBooking(null)}
+                className="p-2 text-slate-400 hover:text-slate-950 hover:bg-slate-50 rounded-xl transition-all border border-slate-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* 🔥 TAMPILKAN NAMA OFFLINE CUSTOMER DI SINI (DI ATAS LIST ITEM AGAR LEBIH RAPI) */}
+            {selectedBooking.offlineCustomer && (
+              <div className="p-3 bg-blue-50 border border-blue-100 rounded-2xl">
+                <p className="text-[10px] font-bold text-blue-500 uppercase tracking-wider">
+                  Penyewa Offline (Walk-in)
+                </p>
+                <p className="text-sm font-black text-slate-800 uppercase">
+                  {selectedBooking.offlineCustomer.name}
+                </p>
+                <p className="text-xs text-slate-500 font-mono">
+                  {selectedBooking.offlineCustomer.phoneNumber}
                 </p>
               </div>
             )}
 
+            {/* 3. LIST ITEMS AREA */}
+            <div className="flex flex-col gap-2 max-h-[45vh] overflow-y-auto pr-1 scrollbar-thin">
+              {(selectedBooking.items || []).map((item: any, i: number) => (
+                <div
+                  key={i}
+                  className="flex justify-between items-center p-3 rounded-2xl bg-slate-50/50 border border-slate-100 hover:bg-slate-50 hover:border-slate-200 transition-all group"
+                >
+                  {/* Bagian Kiri: Info Nama Alat */}
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 overflow-hidden border border-slate-200">
+                      <img
+                        src={`http://localhost:3001/uploads/${item.item?.image}`}
+                        alt={item.item?.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+
+                    <div className="flex flex-col">
+                      <span className="font-bold text-sm text-slate-800 group-hover:text-slate-950 transition-colors">
+                        {item.item?.name || "Item Tidak Diketahui"}
+                      </span>
+                      <span className="text-[10px] text-slate-500">
+                        Qty tersedia di detail
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Bagian Kanan: Badge Kuantitas / Qty */}
+                  <span className="text-xs font-black px-3 py-1.5 bg-white text-slate-950 border border-slate-200 rounded-xl shadow-sm tracking-wider">
+                    {item.quantity} PCS
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* FOOTER MODAL */}
+            <div className="mt-2 pt-2 border-t border-slate-100">
+              <button
+                onClick={() => setSelectedBooking(null)}
+                className="w-full h-11 bg-slate-950 hover:bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md shadow-slate-950/10"
+              >
+                Selesai
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PENALTY MODAL */}
+      {penaltyData?.show && (
+        <div className="fixed inset-0 flex items-center justify-center">
+          {/* BACKDROP */}
+          <div
+            className="absolute inset-0 bg-black/60"
+            onClick={() => setPenaltyData(null)}
+          />
+
+          {/* MODAL */}
+          <div className="bg-white p-6 rounded-2xl z-10 text-center space-y-4 w-[300px] shadow-xl">
+            {penaltyData.isLate ? (
+              <>
+                <AlertCircle className="mx-auto text-red-500" />
+
+                <h3 className="font-black text-red-600 text-lg">Terlambat!</h3>
+
+                <p className="text-sm text-slate-600">
+                  Kode: <span className="font-bold">{penaltyData.code}</span>
+                </p>
+
+                {/* 🔥 TAMBAHAN: LATE DAYS */}
+                <p className="text-sm text-slate-600">
+                  Terlambat:{" "}
+                  <span className="font-black text-red-600">
+                    {penaltyData.lateDays} hari
+                  </span>
+                </p>
+
+                <p className="font-black text-xl text-red-600">
+                  Rp {penaltyData.amount.toLocaleString("id-ID")}
+                </p>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="mx-auto text-green-500" />
+
+                <h3 className="font-black text-green-600 text-lg">Aman</h3>
+
+                <p className="text-sm text-slate-600">
+                  Kode: <span className="font-bold">{penaltyData.code}</span>
+                </p>
+              </>
+            )}
+
+            {/* BUTTON */}
             <button
               onClick={() => setPenaltyData(null)}
-              className="w-full bg-slate-950 hover:bg-blue-600 text-white py-4 rounded-2xl text-[10px] font-black uppercase italic tracking-widest transition-all shadow-xl"
+              className="bg-black text-white px-4 py-2 rounded-xl w-full hover:bg-black/80 transition"
             >
-              Selesai & Tutup
+              Tutup
             </button>
           </div>
         </div>
       )}
     </div>
-  );
-}
-
-// SUB-KOMPONEN TAB BUTTON
-function TabButton({
-  active,
-  onClick,
-  icon,
-  label,
-}: {
-  active: boolean;
-  onClick: () => void;
-  icon: any;
-  label: string;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "flex items-center gap-2 px-6 py-3 rounded-xl text-[10px] font-black uppercase italic transition-all duration-200",
-        active
-          ? "bg-white text-slate-950 shadow-md ring-1 ring-slate-200/50"
-          : "text-slate-400 hover:text-slate-600",
-      )}
-    >
-      {icon} {label}
-    </button>
   );
 }
