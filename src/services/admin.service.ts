@@ -344,6 +344,13 @@ if (status && status !== "ALL" && status.trim() !== "") {
           },
         },
       },
+      {
+        offlineCustomer:{
+          name: {
+            contains: search,
+          }
+        }
+      }
     ];
   }
 
@@ -557,7 +564,17 @@ export const getMonthlyRevenueService = async () => {
 
 export const getRentService = async () => {
   //ambil data sewa
-  const data = await prisma.booking.findMany();
+  const data = await prisma.booking.findMany({
+    select: {
+      status: true,
+      createdAt: true,
+      endDate: true,
+    },where: {
+      status: {
+        in : ["FINISHED", "RENTED",]
+      }
+    },
+  })
 
   const monthlyData = {};
 
@@ -747,6 +764,13 @@ export const GetAllTransactionService = async (
         bookingCode: {
           contains: search,
         },
+      },
+      {
+        offlineCustomer: {
+          name: {
+            contains: search,
+          }
+        }
       },
       {
         user: {

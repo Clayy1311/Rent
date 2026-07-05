@@ -7,7 +7,7 @@ import { mybookingsdetail } from "../controllers/booking.controller"
 const router = express.Router()
 
 router.post("/",authMiddleware, createBooking)
-router.get("/mybookings", authMiddleware, mybookings)
+router.get("/mybookings/:id", authMiddleware, mybookings)
 router.get("/mybookingsdetail/:id", authMiddleware,mybookingsdetail)
 router.get("/:id/invoice", downloadInvoice);
 

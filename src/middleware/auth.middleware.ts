@@ -5,7 +5,7 @@ import jwt from "jsonwebtoken"
 export interface AuthRequest extends Request {
   user?: any
 }
-
+  
 export const authMiddleware = (
   req: AuthRequest,
   res: Response,

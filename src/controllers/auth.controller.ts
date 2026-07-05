@@ -5,6 +5,8 @@ import * as authService from "../services/auth.service";
 import { generateToken } from "../utils/jwt";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
+import { OAuth2Client } from "google-auth-library";
+import jwt from "jsonwebtoken";
 
 // export const register = async (req: Request, res: Response) => {
 //   try {
@@ -243,8 +245,23 @@ export const login = async (req: Request, res: Response) => {
 
 export const getMe = async (req: Request, res: Response) => {
   try {
-    // Ambil id dari req.user (hasil dekorasi middleware verifyToken)
-    const userId = (req as any).user.id;
+    const userSession = (req as any).user;
+
+    if (!userSession || !userSession.id) {
+      return res.status(401).json({ 
+        status: "error", 
+        message: "Unauthorized: Session tidak ditemukan" 
+      });
+    }
+
+    const userId = Number(userSession.id);
+
+    if (isNaN(userId)) {
+      return res.status(400).json({
+        status: "error",
+        message: "Invalid User ID"
+      });
+    }
 
     const user = await authService.getUserProfile(userId);
 
@@ -260,5 +277,83 @@ export const getMe = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     res.status(500).json({ status: "error", message: error.message });
+  }
+};
+const client = new OAuth2Client(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
+  process.env.GOOGLE_CALLBACK_URL
+);
+
+export const googleLogin = (req: Request, res: Response) => {
+  const url = client.generateAuthUrl({
+    access_type: "offline",
+    scope: ["profile", "email"],
+    redirect_uri: process.env.GOOGLE_CALLBACK_URL,
+    prompt: "select_account"
+  });
+
+  res.redirect(url);
+};
+export const googleCallback = async (req: Request, res: Response) => {
+  try {
+    const { code } = req.query;
+
+    if (!code) {
+      return res.redirect("http://localhost:3000/login-failed?reason=no_code");
+    }
+
+    // 1. WAJIB sertakan redirect_uri di dalam object parameter getToken
+    const { tokens } = await client.getToken({
+      code: code as string,
+      redirect_uri: process.env.GOOGLE_CALLBACK_URL, // Harus sama persis dengan .env
+    });
+    client.setCredentials(tokens);
+
+    const ticket = await client.verifyIdToken({
+      idToken: tokens.id_token!,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+
+    if (!payload) {
+      return res.status(400).json({ message: "Invalid Google token" });
+    }
+
+    const { email, name } = payload;
+
+    // Cek user di database
+    let user = await prisma.user.findUnique({
+      where: { email: email! },
+    });
+
+    // Kalau belum ada → create
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          email: email!,
+          name: name || "Google User",
+          password: "", 
+          isVerified: true,
+          // ⚠️ CATATAN: Jika kolom phone/address di schema.prisma kamu itu wajib (required),
+          // pastikan beri nilai default string kosong "" agar database tidak error:
+          phone: "",   
+          address: "", 
+        },
+      });
+    }
+
+    // Generate JWT aplikasi kamu
+    const token = generateToken(user.id, user.role);
+
+    // Redirect ke frontend sukses sambil membawa token
+   return res.redirect(
+  `http://localhost:3000/login-success?token=${token}&role=${user.role}&name=${encodeURIComponent(user.name)}&id=${user.id}`
+);
+  } catch (error) {
+    // Ini akan memunculkan detail error asli di terminal backend kamu untuk debugging
+    console.error("Detail Error Callback Google:", error);
+    return res.redirect("http://localhost:3000/login-failed");
   }
 };

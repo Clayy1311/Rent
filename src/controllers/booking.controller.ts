@@ -22,6 +22,8 @@ export const createBooking = async (
       (req as any).user?.id ||
       req.body.userId;
 
+      
+
     if (
       !items ||
       !Array.isArray(items) ||
@@ -70,7 +72,7 @@ export const mybookings = async(req: AuthRequest, res: Response) => {
 
   try {
 
-    const userId = (req as any).user.id
+    const userId = Number(req.params.id);
 
     const bookings = await bookingService.mybookings(userId)
 

@@ -30,6 +30,13 @@ export const createBooking = async (
   const start = new Date(data.startDate);
   const end = new Date(data.endDate);
 
+  const countDay = end.getTime() - start.getTime();
+const day = Math.ceil(countDay / (1000 * 60 *60 *24));
+
+   console.log("hari ke", day);
+  
+ 
+
   let totalPrice = 0;
 
   const validatedItems: {
@@ -104,7 +111,7 @@ export const createBooking = async (
     }
 
     totalPrice +=
-      item.price * cartItem.quantity;
+      item.price * cartItem.quantity * day;
 
     validatedItems.push({
       itemId: item.id,
