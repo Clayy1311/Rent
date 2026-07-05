@@ -41,153 +41,129 @@ import api from "@/lib/axios";
 export function CartDialog() {
   const router = useRouter();
 
-  // Ambil state cart (satuan) dan packages (bundling) dari zustand
-  const {
-    cart,
-    packages,
-    removeFromCart,
-    updateQuantity,
-    clearCart,
-    removePackage,
-  } = useCartStore();
-  const { token } = useAuthStore();
-  const [open, setOpen] = useState(false);
+const {
+  cart,
+  packages,
+  removeFromCart,
+  updateQuantity,
+  clearCart,
+  removePackage,
+} = useCartStore();
+const { token, user, logout } = useAuthStore();
+const [open, setOpen] = useState(false);
+const [loading, setLoading] = useState(false);
+const [date, setDate] = useState<DateRange | undefined>({
+  from: new Date(),
+  to: new Date(new Date().setDate(new Date().getDate() + 1)),
+});
 
-  const [loading, setLoading] = useState(false);
-  const [date, setDate] = useState<DateRange | undefined>({
-    from: new Date(),
-    to: new Date(new Date().setDate(new Date().getDate() + 1)),
-  });
-  const getImageUrl = (fileName: string) => {
+const getImageUrl = (fileName: string) => {
   if (!fileName) return "https://via.placeholder.com/300";
   return `http://localhost:3001/uploads/${encodeURIComponent(fileName)}`;
 };
 
-  const calculateDays = () => {
-    if (!date?.from || !date?.to) return 1;
-    const diff = differenceInDays(startOfDay(date.to), startOfDay(date.from));
-    return diff <= 0 ? 1 : diff;
-  };
+const calculateDays = () => {
+  if (!date?.from || !date?.to) return 1;
+  const diff = differenceInDays(startOfDay(date.to), startOfDay(date.from));
+  return diff <= 0 ? 1 : diff;
+};
 
-  const validDays = calculateDays();
+const validDays = calculateDays();
 
-  // Kalkulasi Total: Cek apakah ada paket atau item satuan
-  const totalPrice =
-    packages.length > 0
-      ? (packages[0].finalPrice || packages[0].final_price || 0) * validDays
-      : cart.reduce(
-          (total, item) => total + item.price * item.quantity * validDays,
-          0,
-        );
+const totalPrice =
+  packages.length > 0
+    ? (packages[0].finalPrice || packages[0].final_price || 0) * validDays
+    : cart.reduce(
+        (total, item) => total + item.price * item.quantity * validDays,
+        0,
+      );
 
-  const handleBooking = async () => {
-    if (!token) {
-      return toast.error("Silakan login terlebih dahulu!");
+const handleBooking = async () => {
+  if (!token || !user?.id) {
+    toast.error("Sesi login kamu habis, silakan login ulang.");
+    if (logout) logout();
+    return;
+  }
+
+  if (!date?.from || !date?.to) {
+    return toast.error("Pilih tanggal sewa!");
+  }
+
+  const isCartEmpty = cart.length === 0 && packages.length === 0;
+  if (isCartEmpty) {
+    return toast.error("Keranjang kosong!");
+  }
+
+  setLoading(true);
+
+  try {
+    let response;
+
+    if (packages.length > 0) {
+      const payload = {
+        userId: Number(user.id),
+        packageId: Number(packages[0].id),
+        startDate: format(date.from, "yyyy-MM-dd"),
+        endDate: format(date.to, "yyyy-MM-dd"),
+      };
+
+      response = await api.post("/package/checkout", payload);
+    } else {
+      response = await api.post("/bookings", {
+        userId: Number(user.id),
+        items: cart.map((item) => ({
+          itemId: Number(item.id),
+          quantity: Number(item.quantity),
+        })),
+        startDate: format(date.from!, "yyyy-MM-dd"),
+        endDate: format(date.to!, "yyyy-MM-dd"),
+      });
     }
 
-    if (!date?.from || !date?.to) {
-      return toast.error("Pilih tanggal sewa!");
+    const tokenMidtrans = response?.data?.data?.token;
+
+    if (!tokenMidtrans) {
+      throw new Error("Token Midtrans tidak ditemukan");
     }
 
-    const isCartEmpty = cart.length === 0 && packages.length === 0;
-
-    if (isCartEmpty) {
-      return toast.error("Keranjang kosong!");
-    }
-
-    setLoading(true);
-
-    try {
-      let response;
-
-      // =========================
-      // BOOKING PACKAGE
-      // =========================
-      if (packages.length > 0) {
-        const payload = {
-          packageId: Number(packages[0].id),
-          startDate: format(date.from, "yyyy-MM-dd"),
-          endDate: format(date.to, "yyyy-MM-dd"),
-
-        };
-
-        response = await api.post("/package/checkout", payload);
-      }
-
-      // =========================
-      // BOOKING ITEM
-      // =========================
-      else {
-         response = await api.post("/bookings", {
-          items: cart.map((item) => ({
-            itemId: Number(item.id),
-            quantity: Number(item.quantity),
-          })),
-
-          startDate: format(date.from!, "yyyy-MM-dd"),
-          endDate: format(date.to!, "yyyy-MM-dd"),
+    setOpen(false);
+    console.log(window.snap);
+    window.snap.pay(tokenMidtrans, {
+      onSuccess: function (result: any) {
+        toast.success("Pembayaran berhasil!", {
+          description: "Pesanan kamu berhasil dibayar.",
         });
-      }
+        clearCart();
+        router.push("/history");
+      },
+      onPending: function (result: any) {
+        toast.info("Menunggu pembayaran", {
+          description: "Silakan selesaikan pembayaran kamu.",
+        });
+        clearCart();
+        router.push("/history");
+      },
+      onError: function (result: any) {
+        toast.error("Pembayaran gagal", {
+          description: "Terjadi kesalahan saat pembayaran.",
+        });
+      },
+      onClose: function () {
+        toast.warning("Popup pembayaran ditutup");
+      },
+    });
+  } catch (err: any) {
+    console.log(err);
+    const backendMessage = err.response?.data?.message;
 
-      // =========================
-      // AMBIL TOKEN MIDTRANS
-      // =========================
-      const tokenMidtrans = response?.data?.data?.token;
-
-      if (!tokenMidtrans) {
-        throw new Error("Token Midtrans tidak ditemukan");
-      }
-
-      // =========================
-      // OPEN MIDTRANS POPUP
-      // =========================
-      setOpen(false);
-      console.log(window.snap)
-      window.snap.pay(tokenMidtrans, {
-        onSuccess: function (result: any) {
-          toast.success("Pembayaran berhasil!", {
-            description: "Pesanan kamu berhasil dibayar.",
-          });
-
-          clearCart();
-
-          router.push("/history");
-        },
-
-        onPending: function (result: any) {
-          toast.info("Menunggu pembayaran", {
-            description: "Silakan selesaikan pembayaran kamu.",
-          });
-
-          clearCart();
-
-          router.push("/history");
-        },
-
-        onError: function (result: any) {
-          toast.error("Pembayaran gagal", {
-            description: "Terjadi kesalahan saat pembayaran.",
-          });
-        },
-
-        onClose: function () {
-          toast.warning("Popup pembayaran ditutup");
-        },
-      });
-    } catch (err: any) {
-      console.log(err);
-
-      const backendMessage = err.response?.data?.message;
-
-      toast.error("Gagal Booking", {
-        description: backendMessage || "Terjadi kesalahan pada server.",
-        duration: 5000,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
+    toast.error("Gagal Booking", {
+      description: backendMessage || "Terjadi kesalahan pada server.",
+      duration: 5000,
+    });
+  } finally {
+    setLoading(false);
+  }
+};
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -245,70 +221,65 @@ export function CartDialog() {
         </DialogHeader>
 
         {/* Pemilihan Tanggal */}
-       {/* Tanggal */}
-<div className="bg-slate-900/60 p-4 rounded-2xl border border-slate-800 space-y-3">
-  <p className="text-xs font-semibold text-slate-400">
-    Tanggal Sewa
-  </p>
+        {/* Tanggal */}
+        <div className="bg-slate-900/60 p-4 rounded-2xl border border-slate-800 space-y-3">
+          <p className="text-xs font-semibold text-slate-400">Tanggal Sewa</p>
 
-  <div className="grid grid-cols-2 gap-3">
-    
-    {/* START */}
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          className="h-12 justify-start bg-slate-900 border-slate-700 text-white"
-        >
-          <CalendarIcon className="mr-2 h-4 w-4 text-emerald-400" />
-          {date?.from
-            ? format(date.from, "dd MMM yyyy", { locale: id })
-            : "Mulai"}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto z-[9999] p-0 bg-slate-950 border-slate-800">
-        <Calendar
-          mode="single"
-          selected={date?.from}
-          onSelect={(d) => setDate((prev) => ({ ...prev, from: d }))}
-          disabled={(d) => d < startOfDay(new Date())}
-          locale={id}
-        />
-      </PopoverContent>
-    </Popover>
+          <div className="grid grid-cols-2 gap-3">
+            {/* START */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="h-12 justify-start bg-slate-900 border-slate-700 text-white"
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4 text-emerald-400" />
+                  {date?.from
+                    ? format(date.from, "dd MMM yyyy", { locale: id })
+                    : "Mulai"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto z-[9999] p-0 bg-slate-950 border-slate-800">
+                <Calendar
+                  mode="single"
+                  selected={date?.from}
+                  onSelect={(d) => setDate((prev) => ({ ...prev, from: d }))}
+                  disabled={(d) => d < startOfDay(new Date())}
+                  locale={id}
+                />
+              </PopoverContent>
+            </Popover>
 
-    {/* END */}
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          className="h-12 justify-start bg-slate-950 border-slate-700 text-white"
-        >
-          <CalendarIcon className="mr-2 h-4 w-4 text-emerald-400" />
-          {date?.to
-            ? format(date.to, "dd MMM yyyy", { locale: id })
-            : "Selesai"}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto z-[999] p-0 bg-slate-950 border-slate-800">
-        <Calendar
-          mode="single"
-          selected={date?.to}
-          onSelect={(d) => setDate((prev) => ({ ...prev, to: d }))}
-          disabled={(d) =>
-            d < startOfDay(date?.from || new Date())
-          }
-          locale={id}
-        />
-      </PopoverContent>
-    </Popover>
-  </div>
+            {/* END */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="h-12 justify-start bg-slate-950 border-slate-700 text-white"
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4 text-emerald-400" />
+                  {date?.to
+                    ? format(date.to, "dd MMM yyyy", { locale: id })
+                    : "Selesai"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto z-[999] p-0 bg-slate-950 border-slate-800">
+                <Calendar
+                  mode="single"
+                  selected={date?.to}
+                  onSelect={(d) => setDate((prev) => ({ ...prev, to: d }))}
+                  disabled={(d) => d < startOfDay(date?.from || new Date())}
+                  locale={id}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
 
-  {/* Info durasi */}
-  <p className="text-[11px] text-emerald-400 font-medium">
-    {validDays} hari sewa
-  </p>
-</div>
+          {/* Info durasi */}
+          <p className="text-[11px] text-emerald-400 font-medium">
+            {validDays} hari sewa
+          </p>
+        </div>
 
         {/* List Item / Package */}
         <ScrollArea className="max-h-[35vh] pr-4 px-1">
@@ -355,65 +326,68 @@ export function CartDialog() {
               {/* RENDER ITEM SATUAN (Jika ada) */}
               {cart.map((item) => (
                 <div
-  key={item.id}
-  className="flex gap-4 items-center bg-slate-800 p-3 rounded-2xl border border-slate-700"
->
-  {/* Image */}
-  <div className="w-20 h-20 rounded-xl overflow-hidden bg-slate-700 shrink-0">
-    <img
-      src={getImageUrl(item.image)}
-      alt={item.name}
-      className="w-full h-full object-cover"
-    />
-  </div>
+                  key={item.id}
+                  className="flex gap-4 items-center bg-slate-800 p-3 rounded-2xl border border-slate-700"
+                >
+                  {/* Image */}
+                  <div className="w-20 h-20 rounded-xl overflow-hidden bg-slate-700 shrink-0">
+                    <img
+                      src={getImageUrl(item.image)}
+                      alt={item.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
 
-  {/* Info */}
-  <div className="flex-1 min-w-0">
-    <h4 className="font-bold text-xs text-white truncate">
-      {item.name}
-    </h4>
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-bold text-xs text-white truncate">
+                      {item.name}
+                    </h4>
 
-    <p className="text-[10px] text-slate-400">
-      {validDays} Hari × Rp {item.price.toLocaleString("id-ID")}
-    </p>
+                    <p className="text-[10px] text-slate-400">
+                      {validDays} Hari × Rp {item.price.toLocaleString("id-ID")}
+                    </p>
 
-    <p className="text-sm text-primary font-black">
-      Rp {(item.price * item.quantity * validDays).toLocaleString("id-ID")}
-    </p>
-  </div>
+                    <p className="text-sm text-primary font-black">
+                      Rp{" "}
+                      {(item.price * item.quantity * validDays).toLocaleString(
+                        "id-ID",
+                      )}
+                    </p>
+                  </div>
 
-  {/* Quantity */}
-  <div className="flex items-center gap-3 bg-slate-950 px-2 py-1 rounded-full border border-slate-800">
-    <button
-      onClick={() => updateQuantity(item.id, "minus")}
-      disabled={item.quantity <= 1 || loading}
-      className="text-slate-400 hover:text-white disabled:opacity-30"
-    >
-      <Minus size={12} />
-    </button>
+                  {/* Quantity */}
+                  <div className="flex items-center gap-3 bg-slate-950 px-2 py-1 rounded-full border border-slate-800">
+                    <button
+                      onClick={() => updateQuantity(item.id, "minus")}
+                      disabled={item.quantity <= 1 || loading}
+                      className="text-slate-400 hover:text-white disabled:opacity-30"
+                    >
+                      <Minus size={12} />
+                    </button>
 
-    <span className="text-xs font-bold text-white">
-      {item.quantity}
-    </span>
+                    <span className="text-xs font-bold text-white">
+                      {item.quantity}
+                    </span>
 
-    <button
-      onClick={() => updateQuantity(item.id, "plus")}
-      disabled={loading}
-      className="text-slate-400 hover:text-white"
-    >
-      <Plus size={12} />
-    </button>
-  </div>
+                    <button
+                      onClick={() => updateQuantity(item.id, "plus")}
+                      disabled={loading}
+                      className="text-slate-400 hover:text-white"
+                    >
+                      <Plus size={12} />
+                    </button>
+                  </div>
 
-  {/* Delete */}
-  <button
-    onClick={() => removeFromCart(item.id)}
-    disabled={loading}
-    className="text-slate-600 hover:text-red-400"
-  >
-    <Trash2 className="h-4 w-4" />
-  </button>
-</div>
+                  {/* Delete */}
+                  <button
+                    onClick={() => removeFromCart(item.id)}
+                    disabled={loading}
+                    className="text-slate-600 hover:text-red-400"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               ))}
             </div>
           )}

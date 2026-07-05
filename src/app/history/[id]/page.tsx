@@ -145,15 +145,8 @@ export default function BookingDetailPage() {
                   </div>
                 </div>
                 <div className="flex gap-4">
-                  <div className="h-10 w-10 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600 flex-shrink-0">
-                    <Timer size={20} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Batas Pembayaran</p>
-                    <p className="text-sm font-bold text-slate-700">
-                      {safeFormat(booking.expiredAt, "dd MMM yyyy, HH:mm")} WIB
-                    </p>
-                  </div>
+                 
+                  
                 </div>
               </div>
             </div>

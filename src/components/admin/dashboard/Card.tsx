@@ -81,13 +81,8 @@ export default function CardchartPage() {
           </h2>
 
           <div className="flex items-center gap-2 text-xs opacity-80">
-            {isGrowthPositive ? (
-              <TrendingUp className="w-4 h-4" />
-            ) : (
-              <TrendingDown className="w-4 h-4" />
-            )}
+          
 
-            {data.growth}% dari bulan lalu
           </div>
         </CardContent>
       </Card>

@@ -18,6 +18,7 @@ import { Loader2 } from "lucide-react";
 import { FaqSection } from "@/components/features/FaqSection";
 import { RentalFlow } from "@/components/features/RentalFlow";
 
+
 import { DateFilter } from "@/components/features/DateFilter";
 
 export default function LandingPage() {

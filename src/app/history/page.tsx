@@ -22,11 +22,13 @@ export default function HistoryPage() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const { token } = useAuthStore();
-
+  const {user} = useAuthStore();
+   
   useEffect(() => {
     const fetchHistory = async () => {
       try {
-        const res = await fetch("http://localhost:3001/bookings/mybookings", {
+        const id = user.id;
+        const res = await fetch(`http://localhost:3001/bookings/mybookings/${id}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import api from "@/lib/axios";
 import { Edit3, Trash2, Layers, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-
+import { Archive } from "lucide-react";
 interface PackageTableProps {
   onDelete: (id: number) => void;
   onEdit: (pkg: any) => void;
@@ -83,7 +83,8 @@ export function PackageTable({ onDelete, onEdit }: PackageTableProps) {
                   onClick={() => onDelete?.(pkg.id)}
                   className="p-2.5 bg-slate-50 text-slate-400 hover:text-red-600 rounded-xl transition-all"
                 >
-                  <Trash2 size={16} />
+                  
+                  <Archive size={16} />
                 </button>
               </div>
             </td>

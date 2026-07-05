@@ -181,8 +181,8 @@ export default function AdminAllBookingsPage() {
                 data.map((item) => (
                   <tr key={item.id} className="hover:bg-slate-50/80 transition-all group">
                     <td className="px-10 py-7">
-                      <div className="font-black text-slate-900 uppercase italic tracking-tighter text-base leading-tight">{item.user?.name}</div>
-                      <div className="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-tighter">{item.user?.email}</div>
+                      <div className="font-black text-slate-900 uppercase italic tracking-tighter text-base leading-tight"> {item.offlineCustomer?.name || item.user?.name || "Pelanggan Tanpa Nama"}</div>
+                      <div className="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-tighter">{item.offlineCustomer?.phoneNumber||item.user?.email}</div>
                     </td>
                     <td className="px-10 py-7">
                       <div className="flex items-center gap-2 font-mono text-xs font-black text-blue-600 bg-blue-50 w-fit px-3 py-1 rounded-lg italic">

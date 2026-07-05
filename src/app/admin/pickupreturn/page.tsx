@@ -165,7 +165,7 @@ export default function BookingActionPage() {
                         {/* USER */}
                         <td className="px-6 py-5">
                           <div className="font-black uppercase text-slate-800">
-                            {booking.user?.name}
+                            {booking.offlineCustomer?.name||booking.user?.name}
                           </div>
                           <div className="text-[11px] text-blue-600 font-mono">
                             #{booking.bookingCode}

@@ -1,11 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Tag, Plus, Archive, Trash2, Loader2, Search } from "lucide-react";
+import {
+  Tag,
+  Plus,
+  Archive,
+  Trash2,
+  Loader2,
+  Search,
+  Pencil,
+  Pen,
+} from "lucide-react";
 import api from "@/lib/axios";
 import { toast } from "sonner";
 import { CreateCategoryModal } from "@/components/admin/CreateCategoryModal";
-import { ArchiveCategoryModal } from "@/components/admin/ArchiveCategoryModal"; // Import modal baru
+import { ArchiveCategoryModal } from "@/components/admin/ArchiveCategoryModal";
 
 interface Category {
   id: number;
@@ -16,8 +25,9 @@ export default function CategoryPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false); // State modal arsip
+  const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -40,10 +50,15 @@ export default function CategoryPage() {
     try {
       await api.patch(`/admin/category/archive/${id}`);
       toast.success("Kategori berhasil diarsipkan!");
-      setRefreshKey(prev => prev + 1);
+      setRefreshKey((prev) => prev + 1);
     } catch (err) {
       toast.error("Gagal mengarsipkan kategori");
     }
+  };
+
+  const handleEdit = (category: Category) => {
+    setSelectedCategory(category);
+    setIsModalOpen(true);
   };
 
   return (
@@ -54,19 +69,21 @@ export default function CategoryPage() {
           <h1 className="text-4xl font-black text-slate-950 tracking-tight uppercase italic">
             Kelola <span className="text-blue-600">Kategori</span>
           </h1>
-          <p className="text-slate-500 font-medium italic">Atur pengelompokan unit alat Azka Outdoor.</p>
+          <p className="text-slate-500 font-medium italic">
+            Atur pengelompokan unit alat Azka Outdoor.
+          </p>
         </div>
-        
+
         {/* BUTTON GROUP */}
         <div className="flex items-center gap-3">
-          <button 
+          <button
             onClick={() => setIsArchiveModalOpen(true)}
             className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-4 rounded-2xl text-[10px] font-black uppercase italic tracking-widest transition-all"
           >
             <Archive size={14} className="inline mr-2" /> Lihat Arsip
           </button>
 
-          <button 
+          <button
             onClick={() => setIsModalOpen(true)}
             className="bg-slate-950 hover:bg-blue-600 text-white px-8 py-4 rounded-2xl text-[10px] font-black uppercase italic tracking-widest transition-all shadow-xl"
           >
@@ -94,8 +111,13 @@ export default function CategoryPage() {
               <tbody className="divide-y divide-slate-50">
                 {categories.length > 0 ? (
                   categories.map((cat) => (
-                    <tr key={cat.id} className="group hover:bg-slate-50/50 transition-colors">
-                      <td className="px-8 py-6 font-bold text-slate-400 italic">#{cat.id}</td>
+                    <tr
+                      key={cat.id}
+                      className="group hover:bg-slate-50/50 transition-colors"
+                    >
+                      <td className="px-8 py-6 font-bold text-slate-400 italic">
+                        #{cat.id}
+                      </td>
                       <td className="px-8 py-6">
                         <div className="flex items-center gap-4">
                           <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-all shadow-sm">
@@ -107,8 +129,17 @@ export default function CategoryPage() {
                         </div>
                       </td>
                       <td className="px-8 py-6">
-                        <div className="flex justify-center">
-                          <button 
+                        {/* WRAPPER BARU: Menyatukan tombol agar sejajar dan presisi di tengah */}
+                        <div className="flex justify-center items-center gap-2">
+                          <button
+                            onClick={() => handleEdit(cat)}
+                            className="p-3 bg-slate-50 text-slate-700 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all"
+                            title="Edit Kategori"
+                          >
+                            <Pencil size={18} />
+                          </button>
+
+                          <button
                             onClick={() => handleDelete(cat.id)}
                             className="p-3 bg-slate-50 text-slate-700 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
                             title="Arsipkan Kategori"
@@ -121,7 +152,10 @@ export default function CategoryPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={3} className="px-8 py-20 text-center text-slate-400 font-bold italic uppercase text-xs tracking-widest">
+                    <td
+                      colSpan={3}
+                      className="px-8 py-20 text-center text-slate-400 font-bold italic uppercase text-xs tracking-widest"
+                    >
                       <Search className="mx-auto mb-2 opacity-20" size={40} />
                       Belum ada data kategori aktif.
                     </td>
@@ -133,18 +167,22 @@ export default function CategoryPage() {
         )}
       </div>
 
-      {/* Modal Tambah Kategori */}
-      <CreateCategoryModal 
+      {/* Modal Tambah & Edit Kategori */}
+      <CreateCategoryModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSuccess={() => setRefreshKey(prev => prev + 1)}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedCategory(null);
+        }}
+        onSuccess={() => setRefreshKey((prev) => prev + 1)}
+        editData={selectedCategory}
       />
 
       {/* Modal List Arsip Kategori */}
-      <ArchiveCategoryModal 
+      <ArchiveCategoryModal
         isOpen={isArchiveModalOpen}
         onClose={() => setIsArchiveModalOpen(false)}
-        onSuccess={() => setRefreshKey(prev => prev + 1)}
+        onSuccess={() => setRefreshKey((prev) => prev + 1)}
       />
     </div>
   );

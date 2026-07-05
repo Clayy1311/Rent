@@ -19,7 +19,7 @@ export function Navbar({ mounted, user, token, logout }: any) {
         </div>
         
         <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-700">
-          <Link href="#" className="hover:text-primary transition">Katalog</Link>
+        
           
           {mounted && token && user && (
             <Link href="/history" className="text-sm font-medium hover:text-primary transition-colors">
@@ -27,7 +27,7 @@ export function Navbar({ mounted, user, token, logout }: any) {
             </Link>
           )}
           
-          <Link href="#" className="hover:text-primary transition">Paket Bundling</Link>
+         
          
         </div>
         

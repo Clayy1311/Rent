@@ -40,6 +40,11 @@ export function AuthModal({
   const router = useRouter();
   const setAuth = useAuthStore((state) => state.setAuth);
 
+  // FUNGSI TRIGGER LOGIN/REGISTER GOOGLE
+  const handleGoogleLogin = () => {
+    window.location.href = "http://localhost:3001/auth/google";
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -103,7 +108,8 @@ export function AuthModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[420px] z-[100] bg-slate-950 border border-slate-800 text-white rounded-2xl shadow-2xl">
+      {/* UPDATE DI SINI: Ditambahkan max-h-[90vh] overflow-y-auto dan scrollbar-thin */}
+      <DialogContent className="sm:max-w-[420px] max-h-[90vh] overflow-y-auto z-[100] bg-slate-950 border border-slate-800 text-white rounded-2xl shadow-2xl scrollbar-none">
         {/* HEADER */}
         <DialogHeader className="items-center">
           <div className="p-3 bg-primary/10 rounded-2xl mb-2">
@@ -180,7 +186,7 @@ export function AuthModal({
             required
           />
 
-          {/* BUTTON */}
+          {/* BUTTON UTAMA */}
           <Button
             className="w-full h-12 rounded-xl font-bold text-sm mt-2"
             disabled={loading}
@@ -192,6 +198,41 @@ export function AuthModal({
             ) : (
               "Register"
             )}
+          </Button>
+
+          {/* PEMBATAS / DIVIDER OR */}
+          <div className="relative flex py-2 items-center text-xs text-slate-500 uppercase">
+            <div className="flex-grow border-t border-slate-800"></div>
+            <span className="flex-shrink mx-4">Atau</span>
+            <div className="flex-grow border-t border-slate-800"></div>
+          </div>
+
+          {/* TOMBOL LOGIN GOOGLE */}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleGoogleLogin}
+            className="w-full h-12 rounded-xl bg-slate-900 border-slate-800 hover:bg-slate-800 font-medium text-sm text-white hover:text-white flex items-center justify-center gap-3 transition-colors"
+          >
+            <svg className="h-5 w-5" viewBox="0 0 24 24">
+              <path
+                fill="#EA4335"
+                d="M5.266 9.765A7.077 7.077 0 0 1 12 4.909c1.69 0 3.218.6 4.418 1.582l3.51-3.51C17.642 1.054 14.962 0 12 0 7.354 0 3.331 2.653 1.343 6.52l3.923 3.245z"
+              />
+              <path
+                fill="#4285F4"
+                d="M23.455 12.273c0-.818-.068-1.609-.205-2.364H12v4.509h6.423a5.534 5.534 0 0 1-2.396 3.632l3.714 2.877c2.173-2.005 3.414-4.955 3.414-8.654z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M5.266 14.235L1.343 17.48A11.94 11.94 0 0 0 12 24c2.962 0 5.642-1.055 7.732-2.855l-3.714-2.877a7.114 7.114 0 0 1-4.018 1.155c-3.1 0-5.773-2.11-6.734-5.188z"
+              />
+              <path
+                fill="#34A853"
+                d="M12 4.909c1.69 0 3.218.6 4.418 1.582l3.51-3.51C17.642 1.054 14.962 0 12 0 7.354 0 3.331 2.653 1.343 6.52l3.923 3.245C6.227 6.645 8.9 4.909 12 4.909z"
+              />
+            </svg>
+            <span>{isLogin ? "Login dengan Google" : "Daftar dengan Google"}</span>
           </Button>
         </form>
 
